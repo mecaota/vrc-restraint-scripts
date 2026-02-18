@@ -11,16 +11,10 @@ public class MovePositionByContact : UdonSharpBehaviour
     [Tooltip("PlayerBoneConstraintが付いているオブジェクトの配列")]
     public PlayerBoneConstraint[] boneConstraints;
 
-    [Tooltip("PlayerRestraintConstraintが付いているオブジェクトの配列")]
-    public PlayerRestraintConstraint[] restraintConstraints;
-
     void Start()
     {
         if(boneConstraints == null || boneConstraints.Length == 0) {
             boneConstraints = gameObject.GetComponentsInChildren<PlayerBoneConstraint>();
-        }
-        if(restraintConstraints == null || restraintConstraints.Length == 0) {
-            restraintConstraints = gameObject.GetComponentsInChildren<PlayerRestraintConstraint>();
         }
     }
 
@@ -69,22 +63,6 @@ public class MovePositionByContact : UdonSharpBehaviour
     {
         // 各constraintから未使用のものを探す
         foreach (PlayerBoneConstraint constraint in boneConstraints)
-        {
-            if (constraint == null || constraint.IsAttached())
-            {
-                continue;
-            }
-            else
-            {
-                // 未使用のConstraintが見つかった
-                constraint.gameObject.SetActive(true);
-                constraint.SetTargetPlayer(player.playerId);
-                constraint.SetTargetBone(bone);
-                return true;
-            }
-        }
-
-        foreach (PlayerRestraintConstraint constraint in restraintConstraints)
         {
             if (constraint == null || constraint.IsAttached())
             {
