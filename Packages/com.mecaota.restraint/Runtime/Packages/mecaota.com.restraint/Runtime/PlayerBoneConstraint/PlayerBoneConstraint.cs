@@ -49,6 +49,8 @@ public class PlayerBoneConstraint : UdonSharpBehaviour
 
     // スポーン時の初期位置を記録
     protected Vector3 initialPosition;
+    // ターゲットプレイヤーのキャッシュ
+    protected VRCPlayerApi playerCache;
 
     /* Hooks */
     protected virtual void Start()
@@ -59,10 +61,10 @@ public class PlayerBoneConstraint : UdonSharpBehaviour
 
     protected virtual void Update()
     {
-        VRCPlayerApi targetPlayer = GetPlayerByPlayerId(targetPlayerId);
-        if (targetPlayer != null)
+        VRCPlayerApi player = GetPlayerByPlayerId(targetPlayerId);
+        if (player != null)
         {
-            UpdateConstraint(targetPlayer);
+            UpdateConstraint(player);
         }
     }
 
@@ -94,12 +96,13 @@ public class PlayerBoneConstraint : UdonSharpBehaviour
     // ターゲットプレイヤーを設定するpublicメソッド
     public virtual void SetTargetPlayer(int playerId)
     {
-        VRCPlayerApi targetPlayer = GetPlayerByPlayerId(targetPlayerId);
+        VRCPlayerApi player = GetPlayerByPlayerId(targetPlayerId);
 
-        if (targetPlayer != null)
+        if (player != null)
         {
             targetPlayerId = playerId;
-            Debug.Log($"[{GetType().Name}] Tracking {targetPlayer.displayName}'s {targetBone}");
+            playerCache = player;
+            Debug.Log($"[{GetType().Name}] Tracking {player.displayName}'s {targetBone}");
         }
         else
         {
@@ -130,6 +133,11 @@ public class PlayerBoneConstraint : UdonSharpBehaviour
         if (playerId < 0)
         {
             return null;
+        }
+
+        if(playerCache != null && playerCache.playerId == playerId)
+        {
+            return playerCache;
         }
 
         VRCPlayerApi[] players = new VRCPlayerApi[VRCPlayerApi.GetPlayerCount()];
