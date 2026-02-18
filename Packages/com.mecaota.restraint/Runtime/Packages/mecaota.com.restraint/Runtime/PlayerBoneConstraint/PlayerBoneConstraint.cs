@@ -124,6 +124,10 @@ public class PlayerBoneConstraint : UdonSharpBehaviour
         targetPlayerId = -1;
         transform.position = initialPosition;
     }
+    public bool IsAttached()
+    {
+        return GetPlayerByPlayerId(targetPlayerId) != null;
+    }
 
     protected bool IsTargetPlayer(VRCPlayerApi player)
     {
