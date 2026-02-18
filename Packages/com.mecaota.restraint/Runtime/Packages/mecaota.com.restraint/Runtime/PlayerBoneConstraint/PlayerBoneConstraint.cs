@@ -47,11 +47,10 @@ public class PlayerBoneConstraint : UdonSharpBehaviour
     [Tooltip("オブジェクト無効化時に初期位置に戻すか")]
     public bool resetPositionOnDisable = true;
 
-    protected VRCPlayerApi targetPlayer;
-    
     // スポーン時の初期位置を記録
     protected Vector3 initialPosition;
 
+    /* Hooks */
     protected virtual void Start()
     {
         // 初期位置を記録
@@ -60,17 +59,10 @@ public class PlayerBoneConstraint : UdonSharpBehaviour
 
     protected virtual void Update()
     {
-        if (IsPlayerValid(targetPlayer))
+        VRCPlayerApi targetPlayer = GetPlayerByPlayerId(targetPlayerId);
+        if (targetPlayer != null)
         {
-            UpdateConstraint();
-        }
-    }
-
-    protected virtual void FixedUpdate()
-    {
-        if (!IsPlayerValid(targetPlayer))
-        {
-            SetTargetPlayer(targetPlayerId);
+            UpdateConstraint(targetPlayer);
         }
     }
 
@@ -97,20 +89,16 @@ public class PlayerBoneConstraint : UdonSharpBehaviour
             Detach();
         }
     }
+    /* Hooks */
 
     // ターゲットプレイヤーを設定するpublicメソッド
     public virtual void SetTargetPlayer(int playerId)
     {
-        targetPlayerId = playerId;
+        VRCPlayerApi targetPlayer = GetPlayerByPlayerId(targetPlayerId);
 
-        if (targetPlayerId < 0)
+        if (targetPlayer != null)
         {
-            return;
-        }
-        targetPlayer = GetPlayerByPlayerId(targetPlayerId);
-
-        if (IsPlayerValid(targetPlayer))
-        {
+            targetPlayerId = playerId;
             Debug.Log($"[{GetType().Name}] Tracking {targetPlayer.displayName}'s {targetBone}");
         }
         else
@@ -128,27 +116,37 @@ public class PlayerBoneConstraint : UdonSharpBehaviour
 
     public virtual void Detach()
     {
-        targetPlayer = null;
         targetPlayerId = -1;
         transform.position = initialPosition;
     }
 
-    public bool IsAttached()
-    {
-        return IsPlayerValid(targetPlayer);
-    }
-
-    protected bool IsPlayerValid(VRCPlayerApi player)
-    {
-        return player != null && player.IsValid();
-    }
-
     protected bool IsTargetPlayer(VRCPlayerApi player)
     {
-        return IsPlayerValid(targetPlayer) && player.playerId == targetPlayer.playerId;
+        return player.playerId == targetPlayerId;
     }
 
-    protected virtual void UpdateConstraint()
+    protected VRCPlayerApi GetPlayerByPlayerId(int playerId)
+    {
+        if (playerId < 0)
+        {
+            return null;
+        }
+
+        VRCPlayerApi[] players = new VRCPlayerApi[VRCPlayerApi.GetPlayerCount()];
+        VRCPlayerApi.GetPlayers(players);
+        
+        foreach (VRCPlayerApi player in players)
+        {
+            if (player != null && player.IsValid() && player.playerId == playerId)
+            {
+                return player;
+            }
+        }
+        
+        return null;
+    }
+
+    protected virtual void UpdateConstraint(VRCPlayerApi targetPlayer)
     {
         // 追従が全てOFFの場合は何もしない
         if (!followPosition && !followRotation && !followScale)
@@ -193,19 +191,4 @@ public class PlayerBoneConstraint : UdonSharpBehaviour
         }
     }
 
-    protected VRCPlayerApi GetPlayerByPlayerId(int playerId)
-    {
-        VRCPlayerApi[] players = new VRCPlayerApi[VRCPlayerApi.GetPlayerCount()];
-        VRCPlayerApi.GetPlayers(players);
-        
-        foreach (VRCPlayerApi player in players)
-        {
-            if (player != null && player.IsValid() && player.playerId == playerId)
-            {
-                return player;
-            }
-        }
-        
-        return null;
-    }
 }
