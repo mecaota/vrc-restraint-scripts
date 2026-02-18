@@ -94,7 +94,7 @@ public class PlayerBoneConstraint : UdonSharpBehaviour
     /* Hooks */
 
     // ターゲットプレイヤーを設定するpublicメソッド
-    public virtual void SetTargetPlayer(int playerId)
+    public virtual bool SetTargetPlayer(int playerId)
     {
         VRCPlayerApi player = GetPlayerByPlayerId(targetPlayerId);
 
@@ -103,11 +103,13 @@ public class PlayerBoneConstraint : UdonSharpBehaviour
             targetPlayerId = playerId;
             playerCache = player;
             Debug.Log($"[{GetType().Name}] Tracking {player.displayName}'s {targetBone}");
+            return true;
         }
         else
         {
             // プレイヤーが見つからない場合は初期位置に戻す
             Detach();
+            return false;
         }
     }
 
@@ -128,7 +130,7 @@ public class PlayerBoneConstraint : UdonSharpBehaviour
         return player.playerId == targetPlayerId;
     }
 
-    protected VRCPlayerApi GetPlayerByPlayerId(int playerId)
+    protected virtual VRCPlayerApi GetPlayerByPlayerId(int playerId)
     {
         if (playerId < 0)
         {
@@ -154,18 +156,11 @@ public class PlayerBoneConstraint : UdonSharpBehaviour
         return null;
     }
 
-    protected virtual void UpdateConstraint(VRCPlayerApi targetPlayer)
+    protected virtual void SetConstraint(VRCPlayerApi targetPlayer)
     {
-        // 追従が全てOFFの場合は何もしない
-        if (!followPosition && !followRotation && !followScale)
-        {
-            return;
-        }
-
         // ボーンの位置と回転を取得
         Vector3 bonePosition = targetPlayer.GetBonePosition(targetBone);
         Quaternion boneRotation = targetPlayer.GetBoneRotation(targetBone);
-
         if (bonePosition != Vector3.zero) // ボーン位置が有効な場合
         {
             // 位置を追従
@@ -197,6 +192,12 @@ public class PlayerBoneConstraint : UdonSharpBehaviour
                 transform.localScale = Vector3.Lerp(transform.localScale, targetScale, followStrength);
             }
         }
+    }
+
+    protected virtual void UpdateConstraint(VRCPlayerApi targetPlayer)
+    {
+
+        SetConstraint(targetPlayer);
     }
 
 }
