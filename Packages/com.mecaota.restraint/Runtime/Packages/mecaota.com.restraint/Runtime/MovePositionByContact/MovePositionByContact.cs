@@ -30,7 +30,6 @@ public class MovePositionByContact : UdonSharpBehaviour
 
     public override void OnPlayerParticleCollision(VRCPlayerApi player)
     {
-        Debug.Log($"[MovePositionByContact] Particle Contacted {player.displayName}");
         HandlePlayerContact(player);
     }
 
