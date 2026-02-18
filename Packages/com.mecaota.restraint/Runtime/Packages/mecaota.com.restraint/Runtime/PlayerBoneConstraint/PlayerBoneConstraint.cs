@@ -102,12 +102,12 @@ public class PlayerBoneConstraint : UdonSharpBehaviour
     public virtual void SetTargetPlayer(int playerId)
     {
         targetPlayerId = playerId;
-        targetPlayer = null;
 
-        if (0 <= targetPlayerId)
+        if (targetPlayerId < 0)
         {
-            targetPlayer = GetPlayerByPlayerId(targetPlayerId);
+            return;
         }
+        targetPlayer = GetPlayerByPlayerId(targetPlayerId);
 
         if (IsPlayerValid(targetPlayer))
         {
