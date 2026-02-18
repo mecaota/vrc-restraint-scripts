@@ -53,13 +53,13 @@ public class PlayerBoneConstraint : UdonSharpBehaviour
     protected VRCPlayerApi playerCache;
 
     /* Hooks */
-    protected virtual void Start()
+    protected void Start()
     {
         // 初期位置を記録
         initialPosition = transform.position;
     }
 
-    protected virtual void Update()
+    protected void Update()
     {
         VRCPlayerApi player = GetPlayerByPlayerId(targetPlayerId);
         if (player != null)
@@ -68,7 +68,7 @@ public class PlayerBoneConstraint : UdonSharpBehaviour
         }
     }
 
-    protected virtual void OnDisable()
+    protected void OnDisable()
     {
         if (resetPositionOnDisable)
         {
@@ -135,7 +135,7 @@ public class PlayerBoneConstraint : UdonSharpBehaviour
         return player.playerId == targetPlayerId;
     }
 
-    protected virtual VRCPlayerApi GetPlayerByPlayerId(int playerId)
+    protected VRCPlayerApi GetPlayerByPlayerId(int playerId)
     {
         if (playerId < 0)
         {
@@ -161,7 +161,7 @@ public class PlayerBoneConstraint : UdonSharpBehaviour
         return null;
     }
 
-    protected virtual void SetConstraint(VRCPlayerApi targetPlayer)
+    protected void SetConstraint(VRCPlayerApi targetPlayer)
     {
         // ボーンの位置と回転を取得
         Vector3 bonePosition = targetPlayer.GetBonePosition(targetBone);

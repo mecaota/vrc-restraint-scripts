@@ -34,7 +34,7 @@ public class PlayerRestraintConstraint : PlayerBoneConstraint
         isFirstUpdate = false;
     }
 
-    protected virtual void restraintPlayer(VRCPlayerApi targetPlayer)
+    protected void restraintPlayer(VRCPlayerApi targetPlayer)
     {
         // ボーンの位置を取得
         Vector3 bonePosition = targetPlayer.GetBonePosition(targetBone);
