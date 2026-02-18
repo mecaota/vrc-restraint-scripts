@@ -1,0 +1,2 @@
+# vrc_restraint_scripts
+拘束できるVRChatのワールドギミック用スクリプト
