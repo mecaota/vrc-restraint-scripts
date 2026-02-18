@@ -122,6 +122,7 @@ public class PlayerBoneConstraint : UdonSharpBehaviour
     public virtual void Detach()
     {
         targetPlayerId = -1;
+        playerCache = null;
         transform.position = initialPosition;
     }
     public bool IsAttached()
