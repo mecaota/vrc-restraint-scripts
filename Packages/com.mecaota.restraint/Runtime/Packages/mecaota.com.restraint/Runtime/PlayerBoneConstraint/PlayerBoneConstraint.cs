@@ -96,7 +96,7 @@ public class PlayerBoneConstraint : UdonSharpBehaviour
     // ターゲットプレイヤーを設定するpublicメソッド
     public virtual bool SetTargetPlayer(int playerId)
     {
-        VRCPlayerApi player = GetPlayerByPlayerId(targetPlayerId);
+        VRCPlayerApi player = GetPlayerByPlayerId(playerId);
 
         if (player != null)
         {
