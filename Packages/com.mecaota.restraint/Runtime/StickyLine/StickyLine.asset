@@ -12,8 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c333ccfdd0cbdbc4ca30cef2dd6e6b9b, type: 3}
   m_Name: StickyLine
   m_EditorClassIdentifier: 
-  serializedUdonProgramAsset: {fileID: 11400000, guid: 0ebd731084ae74f4fa7b81d0bb88f0d3,
-    type: 2}
+  serializedUdonProgramAsset: {fileID: 11400000, guid: 1b90056d92584db4fa636af61c5407db, type: 2}
   udonAssembly: 
   assemblyError: 
   sourceCsScript: {fileID: 11500000, guid: e941810eb5178e148960e41e081041b6, type: 3}
