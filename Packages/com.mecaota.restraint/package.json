@@ -3,8 +3,6 @@
   "displayName" : "Player Restraint Scripts",
   "description": "Your package description",
   "version": "0.0.3",
-  "gitDependencies": {},
-  "vpmDependencies": {},
   "author": {
     "name": "mecaota",
     "url": "https://github.com/mecaota/"
