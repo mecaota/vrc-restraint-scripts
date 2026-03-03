@@ -1,5 +1,5 @@
 {
-  "name": "vrc-restraint-scripts",
+  "name": "com.mecaota.restraint",
   "displayName" : "Player Restraint Scripts",
   "description": "Your package description",
   "version": "0.0.3",
