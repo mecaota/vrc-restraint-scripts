@@ -2,7 +2,7 @@
   "name": "vrc-restraint-scripts",
   "displayName" : "Player Restraint Scripts",
   "description": "Your package description",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "gitDependencies": {},
   "vpmDependencies": {},
   "author": {
