@@ -2,7 +2,7 @@
   "name": "com.mecaota.restraint",
   "displayName" : "Player Restraint Scripts",
   "description": "拘束できるVRChatのワールドギミック用スクリプト",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": {
     "name": "mecaota",
     "url": "https://github.com/mecaota/"
