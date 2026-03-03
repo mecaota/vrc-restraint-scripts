@@ -1,14 +1,12 @@
 {
-  "name": "vrc-restraint-scripts",
+  "name": "com.mecaota.restraint",
   "displayName" : "Player Restraint Scripts",
-  "description": "Your package description",
-  "version": "0.0.3",
-  "gitDependencies": {},
-  "vpmDependencies": {},
+  "description": "拘束できるVRChatのワールドギミック用スクリプト",
+  "version": "0.1.0",
   "author": {
     "name": "mecaota",
     "url": "https://github.com/mecaota/"
   },
-  "unity": "2022.3.22f1",
+  "unity": "2022.3",
   "license": "CC0-1.0"
 }
