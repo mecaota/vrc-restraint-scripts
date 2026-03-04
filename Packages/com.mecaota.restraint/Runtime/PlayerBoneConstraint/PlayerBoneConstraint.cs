@@ -5,7 +5,6 @@ using VRC.SDKBase;
 using VRC.Udon;
 
 // VRC Position Constraintと同じ動作をPlayerに対してできるようにしたもの
-[UdonBehaviourSyncMode(BehaviourSyncMode.Manual)]
 public class PlayerBoneConstraint : UdonSharpBehaviour
 {
     // 高さのスケーリングの基準値（アバターの身長がこの値のとき、scaleOffsetが等倍で適用される）

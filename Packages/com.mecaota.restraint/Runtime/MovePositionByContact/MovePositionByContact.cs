@@ -4,7 +4,6 @@ using VRC.SDKBase;
 using VRC.SDK3.Components;
 using VRC.Udon;
 
-[UdonBehaviourSyncMode(BehaviourSyncMode.Manual)]
 public class MovePositionByContact : UdonSharpBehaviour
 {
     [Header("Constraint設定")]

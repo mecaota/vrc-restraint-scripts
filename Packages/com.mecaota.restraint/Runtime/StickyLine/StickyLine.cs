@@ -5,7 +5,6 @@ using VRC.SDKBase;
 using VRC.Udon;
 
 [RequireComponent(typeof(LineRenderer))]
-[UdonBehaviourSyncMode(BehaviourSyncMode.Manual)]
 public class StickyLine : UdonSharpBehaviour
 {
     public GameObject targetObject;

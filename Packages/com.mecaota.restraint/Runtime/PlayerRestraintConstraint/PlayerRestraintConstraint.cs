@@ -4,7 +4,6 @@ using UnityEngine;
 using VRC.SDKBase;
 using VRC.Udon;
 
-[UdonBehaviourSyncMode(BehaviourSyncMode.Manual)]
 // VRC Position Constraintと同じ動作をPlayerに対してできるようにしたもの
 public class PlayerRestraintConstraint : PlayerBoneConstraint
 {
