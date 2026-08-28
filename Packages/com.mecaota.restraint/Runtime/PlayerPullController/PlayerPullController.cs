@@ -94,9 +94,10 @@ public class PlayerPullController : UdonSharpBehaviour
         if (_local == null || !_local.IsValid()) { return; }
         int myId = _local.playerId;
 
-        // 引き寄せ（引っ張り上げ）が始まったら糸玉パーティクルを消す。繭が外れたら戻す（ローカル）
+        // 着弾（繭に捕縛）されたら糸玉パーティクルをオフにする。オンには戻さない
+        // （巣に乗っている間の発射オン/オフは既存の WebAreaSensor が制御するので、そちらを壊さない）
         bool captured = IsHeldBy(boneConstraints, myId);
-        if (hideOnPull != null && hideOnPull.activeSelf == captured) { hideOnPull.SetActive(!captured); }
+        if (hideOnPull != null && captured && hideOnPull.activeSelf) { hideOnPull.SetActive(false); }
 
         // 吊り下げ等で拘束中なら引き寄せを止める（SetVelocity競合の回避）
         if (IsHeldBy(exclusiveConstraints, myId)) { _driving = false; _ramp = 0f; return; }
