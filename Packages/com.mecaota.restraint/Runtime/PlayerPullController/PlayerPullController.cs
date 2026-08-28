@@ -34,6 +34,9 @@ public class PlayerPullController : UdonSharpBehaviour
     [Tooltip("吊り下げ拘束（同時に SetVelocity すると競合するので、これに自分が入っている間は引き寄せを止める）")]
     public PlayerBoneConstraint[] exclusiveConstraints;
 
+    [Tooltip("引き寄せ（引っ張り上げ）が始まっている間オフにするオブジェクト。糸玉パーティクルなど。捕縛が解けると自動で戻す（ローカルのみ）")]
+    public GameObject hideOnPull;
+
     [Header("引き寄せ")]
     [Tooltip("基本の引き寄せ速度 (m/s)")]
     public float pullSpeed = 2.0f;
@@ -91,11 +94,15 @@ public class PlayerPullController : UdonSharpBehaviour
         if (_local == null || !_local.IsValid()) { return; }
         int myId = _local.playerId;
 
+        // 引き寄せ（引っ張り上げ）が始まったら糸玉パーティクルを消す。繭が外れたら戻す（ローカル）
+        bool captured = IsHeldBy(boneConstraints, myId);
+        if (hideOnPull != null && hideOnPull.activeSelf == captured) { hideOnPull.SetActive(!captured); }
+
         // 吊り下げ等で拘束中なら引き寄せを止める（SetVelocity競合の回避）
         if (IsHeldBy(exclusiveConstraints, myId)) { _driving = false; _ramp = 0f; return; }
 
         // 繭スロットに自分が入っているか（捕縛判定）
-        if (!IsHeldBy(boneConstraints, myId)) { _driving = false; _ramp = 0f; return; }
+        if (!captured) { _driving = false; _ramp = 0f; return; }
         if (pullAnchor == null) { return; }
 
         // 引き寄せ方向（水平）
