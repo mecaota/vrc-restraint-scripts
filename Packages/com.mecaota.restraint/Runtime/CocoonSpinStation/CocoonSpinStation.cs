@@ -16,7 +16,7 @@ using VRC.SDKBase;
 ///   よって同期変数(UdonSynced)は不要(SyncMode None)。
 /// ・捕縛判定は繭スロット(boneConstraints)を毎フレーム監視し、糸疣(pullAnchor)へ
 ///   grabDistance まで近づいたら着席。繭が外れる(退出/リセット/Respawn)と自動で降りる。
-/// ・PlayerMobility=Immobilize で着席中は自力移動できない(＝拘束)。
+/// ・PlayerMobility=ImmobilizeForVehicle で着席中は自力移動できず、着席アニメが適用される(拘束)。
 /// ・「1人だけ」対応: Station は1台。誰か着席中(_occupied)は他の人は着席させない。
 /// </summary>
 [UdonBehaviourSyncMode(BehaviourSyncMode.None)]
@@ -45,7 +45,7 @@ public class CocoonSpinStation : UdonSharpBehaviour
         _local = Networking.LocalPlayer;
         if (station != null)
         {
-            station.PlayerMobility = VRCStation.Mobility.Immobilize; // 着席中は移動不能
+            station.PlayerMobility = VRCStation.Mobility.ImmobilizeForVehicle; // 移動不能＋着席アニメ適用(Immobilizeだと棒立ちになる)
             station.disableStationExit = true;                      // 勝手に降りられない(降ろすのは本スクリプト)
         }
     }
