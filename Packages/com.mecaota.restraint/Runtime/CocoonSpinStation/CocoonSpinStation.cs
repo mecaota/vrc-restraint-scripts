@@ -14,7 +14,7 @@ using VRC.SDKBase;
 /// ・着席/退席は VRCStation.UseStation/ExitStation でローカルプレイヤーのみ実行できる。
 ///   「誰が座ったか」は VRChat が自動同期し、着席中はアバターのアニメも全員へ同期される。
 ///   よって同期変数(UdonSynced)は不要(SyncMode None)。
-/// ・捕縛判定は繭スロット(boneConstraints)を毎フレーム監視し、糸疣(pullAnchor)へ
+/// ・捕縛判定は繭スロット(cocoons: RestraintCore)を毎フレーム監視し、糸疣(pullAnchor)へ
 ///   grabDistance まで近づいたら着席。繭が外れる(退出/リセット/Respawn)と自動で降りる。
 /// ・PlayerMobility=ImmobilizeForVehicle で着席中は自力移動できず、着席アニメが適用される(拘束)。
 /// ・「1人だけ」対応: Station は1台。誰か着席中(_occupied)は他の人は着席させない。
@@ -26,8 +26,8 @@ public class CocoonSpinStation : UdonSharpBehaviour
     [Tooltip("着席させる VRCStation(このGameObjectに付ける)。横倒し回転アニメは animatorController 側で設定する")]
     public VRCStation station;
 
-    [Tooltip("監視する繭。どれかに自分のplayerIdが入っていて糸疣へ到達したら着席する")]
-    public PlayerBoneConstraint[] boneConstraints;
+    [Tooltip("監視する繭(RestraintCore)。どれかに自分のplayerIdが入っていて糸疣へ到達したら着席する")]
+    public RestraintCore[] cocoons;
 
     [Tooltip("到達判定に使う糸疣アンカー(PlayerPullControllerのpullAnchorと同じで良い)")]
     public Transform pullAnchor;
@@ -90,14 +90,14 @@ public class CocoonSpinStation : UdonSharpBehaviour
         _occupied = false;
     }
 
-    // boneConstraints のどれかが playerId を捕まえているか
+    // cocoons のどれかが playerId を装着しているか(targetPlayerId は同期状態のミラー)
     private bool IsHeldBy(int playerId)
     {
-        if (boneConstraints == null) { return false; }
-        for (int i = 0; i < boneConstraints.Length; i++)
+        if (cocoons == null) { return false; }
+        for (int i = 0; i < cocoons.Length; i++)
         {
-            var c = boneConstraints[i];
-            if (c != null && c.gameObject.activeInHierarchy && c.targetPlayerId == playerId) { return true; }
+            var c = cocoons[i];
+            if (c != null && c.targetPlayerId == playerId) { return true; }
         }
         return false;
     }

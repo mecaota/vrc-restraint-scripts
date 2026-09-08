@@ -12,7 +12,7 @@ using VRC.Udon.Common;
 /// 設計の要点（設計レビュー準拠）:
 /// ・SetVelocity はローカルプレイヤーにしか効かないので、各クライアントで自分1体だけ駆動する。
 ///   他人が引かれる様子は各自のクライアントが駆動し、標準の位置同期で見える（同期は不要 = SyncMode None）
-/// ・捕縛判定は繭スロット(boneConstraints)を毎フレーム見て「自分の playerId が入っているか」で導出。
+/// ・捕縛判定は繭スロット(cocoons: RestraintCore)を毎フレーム見て「自分の playerId が入っているか」で導出。
 ///   退出/リセット/Respawn で繭が Detach してスロットが空くと引き寄せも自動で止まる（解除配線ゼロ）
 /// ・引き寄せは一定速度(pullSpeed)方式。誤差/dt 方式だと遠距離で巨大速度になり VR 酔い/ワープになる
 /// ・Y 速度は GetVelocity().y で保存して重力/ジャンプを温存。水平だけ差し替える
@@ -28,11 +28,11 @@ public class PlayerPullController : UdonSharpBehaviour
     public Transform pullAnchor;
 
     [Header("捕縛判定")]
-    [Tooltip("監視する繭。どれかに自分の playerId が入っていたら引き寄せを駆動する")]
-    public PlayerBoneConstraint[] boneConstraints;
+    [Tooltip("監視する繭(RestraintCore)。どれかに自分の playerId が入っていたら引き寄せを駆動する")]
+    public RestraintCore[] cocoons;
 
-    [Tooltip("吊り下げ拘束（同時に SetVelocity すると競合するので、これに自分が入っている間は引き寄せを止める）")]
-    public PlayerBoneConstraint[] exclusiveConstraints;
+    [Tooltip("吊り下げ拘束の RestraintCore（同時に SetVelocity すると競合するので、これに自分が入っている間は引き寄せを止める）")]
+    public RestraintCore[] exclusiveCores;
 
     [Tooltip("引き寄せ（引っ張り上げ）が始まっている間オフにするオブジェクト。糸玉パーティクルなど。捕縛が解けると自動で戻す（ローカルのみ）")]
     public GameObject hideOnPull;
@@ -96,11 +96,11 @@ public class PlayerPullController : UdonSharpBehaviour
 
         // 着弾（繭に捕縛）されたら糸玉パーティクルをオフにする。オンには戻さない
         // （巣に乗っている間の発射オン/オフは既存の WebAreaSensor が制御するので、そちらを壊さない）
-        bool captured = IsHeldBy(boneConstraints, myId);
+        bool captured = IsHeldBy(cocoons, myId);
         if (hideOnPull != null && captured && hideOnPull.activeSelf) { hideOnPull.SetActive(false); }
 
         // 吊り下げ等で拘束中なら引き寄せを止める（SetVelocity競合の回避）
-        if (IsHeldBy(exclusiveConstraints, myId)) { _driving = false; _ramp = 0f; return; }
+        if (IsHeldBy(exclusiveCores, myId)) { _driving = false; _ramp = 0f; return; }
 
         // 繭スロットに自分が入っているか（捕縛判定）
         if (!captured) { _driving = false; _ramp = 0f; return; }
@@ -147,14 +147,14 @@ public class PlayerPullController : UdonSharpBehaviour
         _local.SetVelocity(_applied);
     }
 
-    // constraints のどれかが playerId を捕まえているか
-    private bool IsHeldBy(PlayerBoneConstraint[] constraints, int playerId)
+    // cores のどれかが playerId を装着しているか(targetPlayerId は同期状態のミラー)
+    private bool IsHeldBy(RestraintCore[] cores, int playerId)
     {
-        if (constraints == null) { return false; }
-        for (int i = 0; i < constraints.Length; i++)
+        if (cores == null) { return false; }
+        for (int i = 0; i < cores.Length; i++)
         {
-            var c = constraints[i];
-            if (c != null && c.gameObject.activeInHierarchy && c.targetPlayerId == playerId) { return true; }
+            var c = cores[i];
+            if (c != null && c.targetPlayerId == playerId) { return true; }
         }
         return false;
     }

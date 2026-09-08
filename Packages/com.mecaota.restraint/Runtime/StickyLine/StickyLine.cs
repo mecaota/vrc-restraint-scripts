@@ -4,10 +4,18 @@ using UnityEngine;
 using VRC.SDKBase;
 using VRC.Udon;
 
+/// <summary>
+/// 自位置から targetObject へたわんだ糸(LineRenderer)を毎フレーム描く。
+/// core を設定すると、その RestraintCore が装着中のときだけ描画する(未装着時は LineRenderer を無効化)。
+/// </summary>
+[UdonBehaviourSyncMode(BehaviourSyncMode.None)]
 [RequireComponent(typeof(LineRenderer))]
 public class StickyLine : UdonSharpBehaviour
 {
     public GameObject targetObject;
+
+    [Tooltip("設定すると、この RestraintCore が装着中のときだけ糸を描く(常時アクティブな繭の糸を隠す用)")]
+    public RestraintCore core;
 
     [Header("糸の設定")]
     [Tooltip("ランダムオフセットの範囲（例: 0.1なら-0.1～0.1の範囲でランダムに揺らぎが入る）")]
@@ -61,6 +69,10 @@ public class StickyLine : UdonSharpBehaviour
 
     void Update()
     {
+        if (lineRenderer == null) return;
+        bool visible = core == null || core.targetPlayerId >= 0;
+        if (lineRenderer.enabled != visible) { lineRenderer.enabled = visible; }
+        if (!visible) return;
         UpdateLineRenderer();
     }
 

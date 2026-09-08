@@ -1,207 +1,231 @@
-﻿
 using UdonSharp;
 using UnityEngine;
 using VRC.SDKBase;
-using VRC.Udon;
 
-// VRC Position Constraintと同じ動作をPlayerに対してできるようにしたもの
+/// <summary>
+/// RestraintCore に装着されたプレイヤーのボーンへ、この GameObject を追従させる追従器
+/// (VRC Position Constraint のプレイヤー版)。
+///
+/// 「誰に装着されているか」は Core が同期・管理し、本コンポーネントは Core の OnBoneAttach / OnBoneDetach を受けて
+/// 追従を開始/停止する。Core の receivers に登録するか、Core と同じ GameObject に置く(兄弟イベント)。
+/// 非アクティブ中にイベントを取りこぼしても OnEnable と毎フレームのエッジ検出で Core の状態に追いつく。
+///
+/// 追従先ボーンは自分の targetBone(useCoreBone=OFF)か、Core が装着したボーン(useCoreBone=ON)。
+/// 1 つの Core に部位ごとの追従器を複数ぶら下げる(吊り下げギミックの各部位繭など)用途と、
+/// Core と同居して Core のボーンに装飾を追従させる用途の両方に使える。
+/// </summary>
+[UdonBehaviourSyncMode(BehaviourSyncMode.None)]
 public class PlayerBoneConstraint : UdonSharpBehaviour
 {
-    // 高さのスケーリングの基準値（アバターの身長がこの値のとき、scaleOffsetが等倍で適用される）
-    private const float DefaultAvatarHeightMeters = 2f;
+    [Header("コア")]
+    [Tooltip("装着状態を持つ RestraintCore。未設定なら同じ GameObject → 親 の順で探す")]
+    public RestraintCore core;
+
+    [Tooltip("ON なら Core が装着したボーンに追従する。OFF なら下の targetBone に追従する")]
+    public bool useCoreBone = false;
 
     [Header("ターゲット設定")]
-    [Tooltip("追従するプレイヤーのID")]
-    public int targetPlayerId = -1;
-    
-    [Tooltip("追従するボーン")]
+    [Tooltip("追従するボーン(useCoreBone=OFF のとき)")]
     public HumanBodyBones targetBone = HumanBodyBones.Hips;
 
     [Header("追従設定")]
-    [Tooltip("追従の強さ（0-1）")]
+    [Tooltip("追従の強さ(0-1)。1 で即座に一致。装着直後の 1 フレームは必ず 1 でスナップする")]
     public float followStrength = 1f;
 
     [Header("位置追従設定")]
     [Tooltip("位置を追従するか")]
     public bool followPosition = true;
 
-    [Tooltip("位置オフセット")]
+    [Tooltip("位置オフセット(ボーン座標系)")]
     public Vector3 positionOffset = Vector3.zero;
 
     [Header("回転追従設定")]
     [Tooltip("回転を追従するか")]
     public bool followRotation = false;
-    
-    [Tooltip("回転オフセット（Euler角）")]
+
+    [Tooltip("回転オフセット(Euler角)")]
     public Vector3 rotationOffset = Vector3.zero;
-    
+
     [Header("スケール追従設定")]
     [Tooltip("スケールを追従するか")]
     public bool followScale = false;
 
-    [Tooltip("スケールオフセット")]
-    public Vector3 scaleOffset = Vector3.zero;
+    [Tooltip("スケールオフセット(身長倍率に掛ける)")]
+    public Vector3 scaleOffset = Vector3.one;
 
-    [Header("設定")]
-    [Tooltip("オブジェクト無効化時に初期位置に戻すか")]
-    public bool resetPositionOnDisable = true;
+    [Tooltip("この目線の高さ(m)のとき scaleOffset が等倍で適用される")]
+    public float referenceEyeHeight = 2f;
 
-    // スポーン時の初期位置を記録
-    protected Vector3 initialPosition;
-    // ターゲットプレイヤーのキャッシュ
+    [Header("解除")]
+    [Tooltip("解除時に初期の位置・回転・スケール(ローカル)へ戻すか")]
+    public bool resetOnDetach = true;
+
+    /// <summary>追従中のプレイヤーID(Core のミラー。-1=未追従)。読み取り専用</summary>
+    [HideInInspector] public int targetPlayerId = -1;
+
+    protected Vector3 initialLocalPosition;
+    protected Quaternion initialLocalRotation;
+    protected Vector3 initialLocalScale;
     protected VRCPlayerApi playerCache;
+    /// <summary>装着直後の最初の更新か(派生クラスはこのフレームだけ強さ 1 で合わせる)</summary>
+    protected bool snapPending;
 
-    /* Hooks */
-    protected void Start()
+    private bool _initialized = false;
+    private bool _following = false;
+
+    // ------------------------------------------------------------------ ライフサイクル
+
+    protected void Initialize()
     {
-        // 初期位置を記録
-        initialPosition = transform.position;
+        if (_initialized) { return; }
+        _initialized = true;
+        initialLocalPosition = transform.localPosition;
+        initialLocalRotation = transform.localRotation;
+        initialLocalScale = transform.localScale;
+        if (core == null) { core = GetComponent<RestraintCore>(); }
+        if (core == null) { core = GetComponentInParent<RestraintCore>(); }
     }
 
-    protected void Update()
+    protected void Start()
     {
-        VRCPlayerApi player = GetPlayerByPlayerId(targetPlayerId);
-        if (player != null)
-        {
-            UpdateConstraint(player);
-        }
+        Initialize();
+        Resync();
+    }
+
+    protected void OnEnable()
+    {
+        Initialize();
+        Resync(); // 非アクティブ中に落ちたイベントの補完
     }
 
     protected void OnDisable()
     {
-        if (resetPositionOnDisable)
-        {
-            Detach();
-        }
-    }
-
-    public override void OnPlayerLeft(VRCPlayerApi player)
-    {
-        if (IsTargetPlayer(player) && resetPositionOnDisable)
-        {
-            Detach();
-        }
-    }
-
-    public override void OnPlayerRespawn(VRCPlayerApi player)
-    {
-        if (IsTargetPlayer(player) && resetPositionOnDisable)
-        {
-            Detach();
-        }
-    }
-    /* Hooks */
-
-    // ターゲットプレイヤーを設定するpublicメソッド
-    public virtual bool SetTargetPlayer(int playerId)
-    {
-        VRCPlayerApi player = GetPlayerByPlayerId(playerId);
-
-        if (player != null)
-        {
-            targetPlayerId = playerId;
-            playerCache = player;
-            Debug.Log($"[{GetType().Name}] Tracking {player.displayName}'s {targetBone}");
-            return true;
-        }
-        else
-        {
-            // プレイヤーが見つからない場合は初期位置に戻す
-            Detach();
-            return false;
-        }
-    }
-
-    // ターゲットボーンを変更するpublicメソッド
-    public void SetTargetBone(HumanBodyBones bone)
-    {
-        targetBone = bone;
-    }
-
-    public virtual void Detach()
-    {
+        // 非表示になったら初期位置へ(表示復帰時は OnEnable の Resync で追従再開)
+        if (_following && resetOnDetach) { ResetTransform(); }
+        _following = false;
         targetPlayerId = -1;
         playerCache = null;
-        transform.position = initialPosition;
-    }
-    public bool IsAttached()
-    {
-        return GetPlayerByPlayerId(targetPlayerId) != null;
     }
 
-    protected bool IsTargetPlayer(VRCPlayerApi player)
+    // ------------------------------------------------------------------ Core からのイベント
+
+    /// <summary>RestraintCore の装着イベント(receivers 登録または兄弟)</summary>
+    public void OnBoneAttach()
     {
-        return player.playerId == targetPlayerId;
+        Initialize();
+        Resync();
     }
 
-    protected VRCPlayerApi GetPlayerByPlayerId(int playerId)
+    /// <summary>RestraintCore の解除イベント</summary>
+    public void OnBoneDetach()
     {
-        if (playerId < 0)
-        {
-            return null;
-        }
+        Initialize();
+        Resync();
+    }
 
-        if(playerCache != null && playerCache.playerId == playerId)
+    /// <summary>Core の状態を読み直して追従の開始/停止を合わせる</summary>
+    public void Resync()
+    {
+        int id = core != null ? core.targetPlayerId : -1;
+        if (id >= 0)
         {
-            return playerCache;
-        }
-
-        VRCPlayerApi[] players = new VRCPlayerApi[VRCPlayerApi.GetPlayerCount()];
-        VRCPlayerApi.GetPlayers(players);
-        
-        foreach (VRCPlayerApi player in players)
-        {
-            if (player != null && player.IsValid() && player.playerId == playerId)
+            if (!_following || targetPlayerId != id)
             {
-                return player;
+                _following = true;
+                targetPlayerId = id;
+                playerCache = null;
+                snapPending = true;
+                OnFollowStarted();
             }
         }
-        
-        return null;
-    }
-
-    protected void SetConstraint(VRCPlayerApi targetPlayer)
-    {
-        // ボーンの位置と回転を取得
-        Vector3 bonePosition = targetPlayer.GetBonePosition(targetBone);
-        Quaternion boneRotation = targetPlayer.GetBoneRotation(targetBone);
-        if (bonePosition != Vector3.zero) // ボーン位置が有効な場合
+        else if (_following)
         {
-            // 位置を追従
-            if (followPosition)
-            {
-                // オフセットを適用した目標位置
-                Vector3 targetPosition = bonePosition + boneRotation * positionOffset;
-                
-                // スムーズに追従
-                transform.position = Vector3.Lerp(transform.position, targetPosition, followStrength);
-            }
-            
-            // 回転を追従
-            if (followRotation)
-            {
-                // 回転オフセットを適用
-                Quaternion offsetRotation = Quaternion.Euler(rotationOffset);
-                Quaternion targetRotation = boneRotation * offsetRotation;
-                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, followStrength);
-            }
-
-            // スケールを追従
-            if (followScale)
-            {
-                float avatarHeightMeters = targetPlayer.GetAvatarEyeHeightAsMeters();
-                float heightScale = avatarHeightMeters / DefaultAvatarHeightMeters;
-                Vector3 baseScale = Vector3.one * heightScale;
-                Vector3 targetScale = Vector3.Scale(baseScale, scaleOffset);
-                transform.localScale = Vector3.Lerp(transform.localScale, targetScale, followStrength);
-            }
+            _following = false;
+            targetPlayerId = -1;
+            playerCache = null;
+            if (resetOnDetach) { ResetTransform(); }
+            OnFollowStopped();
         }
     }
 
+    /// <summary>追従開始時のフック(派生クラス用)</summary>
+    protected virtual void OnFollowStarted() { }
+
+    /// <summary>追従停止時のフック(派生クラス用)</summary>
+    protected virtual void OnFollowStopped() { }
+
+    // ------------------------------------------------------------------ 追従
+
+    public override void PostLateUpdate()
+    {
+        if (core == null) { return; }
+        if (core.targetPlayerId != targetPlayerId) { Resync(); } // 配線漏れ・取りこぼしのフォールバック
+        if (!_following) { return; }
+        VRCPlayerApi player = ResolvePlayer();
+        if (player == null) { return; }
+        UpdateConstraint(player);
+        snapPending = false;
+    }
+
+    /// <summary>毎フレームの追従処理。派生クラスで置き換え/拡張する</summary>
     protected virtual void UpdateConstraint(VRCPlayerApi targetPlayer)
     {
-
         SetConstraint(targetPlayer);
     }
 
+    /// <summary>位置・回転・スケールの標準追従</summary>
+    protected void SetConstraint(VRCPlayerApi targetPlayer)
+    {
+        Vector3 bonePosition;
+        Quaternion boneRotation;
+        if (!RestraintCore.TryGetBonePose(targetPlayer, ResolveBone(), out bonePosition, out boneRotation)) { return; }
+        float strength = snapPending ? 1f : followStrength;
+
+        if (followPosition)
+        {
+            Vector3 targetPosition = bonePosition + boneRotation * positionOffset;
+            transform.position = Vector3.Lerp(transform.position, targetPosition, strength);
+        }
+        if (followRotation)
+        {
+            Quaternion targetRotation = boneRotation * Quaternion.Euler(rotationOffset);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, strength);
+        }
+        if (followScale)
+        {
+            float heightScale = RestraintCore.GetAvatarHeightScale(targetPlayer, referenceEyeHeight);
+            Vector3 targetScale = Vector3.Scale(Vector3.one * heightScale, scaleOffset);
+            transform.localScale = Vector3.Lerp(transform.localScale, targetScale, strength);
+        }
+    }
+
+    /// <summary>実際に追従するボーン</summary>
+    protected HumanBodyBones ResolveBone()
+    {
+        return (useCoreBone && core != null) ? core.targetBone : targetBone;
+    }
+
+    protected VRCPlayerApi ResolvePlayer()
+    {
+        if (targetPlayerId < 0) { return null; }
+        if (playerCache != null && playerCache.IsValid() && playerCache.playerId == targetPlayerId) { return playerCache; }
+        playerCache = VRCPlayerApi.GetPlayerById(targetPlayerId);
+        if (playerCache == null || !playerCache.IsValid()) { playerCache = null; }
+        return playerCache;
+    }
+
+    protected void ResetTransform()
+    {
+        transform.localPosition = initialLocalPosition;
+        transform.localRotation = initialLocalRotation;
+        transform.localScale = initialLocalScale;
+    }
+
+    // ------------------------------------------------------------------ 状態問い合わせ
+
+    /// <summary>追従中か(対象プレイヤーが在室していること)</summary>
+    public bool IsAttached()
+    {
+        return _following && ResolvePlayer() != null;
+    }
 }
