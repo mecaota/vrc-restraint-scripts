@@ -1,76 +1,135 @@
-# VPM Package Template
+# Player Restraint Scripts
 
-Starter for making Packages, including automation for building and publishing them.
+拘束できるVRChatのワールドギミック用スクリプト集です。
+プレイヤーのボーンにオブジェクトを追従させる、プレイヤーをオブジェクトの位置に拘束する、接触したプレイヤーを捕まえる、といった動作を組み合わせて拘束ギミックを作るためのUdonSharpスクリプトを収録しています。
 
-Once you're all set up, you'll be able to push changes to this repository and have .zip and .unitypackage versions automatically generated, and a listing made which works in the VPM for delivering updates for this package. If you want to make a listing with a variety of packages, check out our [template-package-listing](https://github.com/vrchat-community/template-package-listing) repo.
+## 導入方法
 
-## ▶ Getting Started
+### VCC / ALCOMから導入する（推奨）
 
-* Press [![Use This Template](https://user-images.githubusercontent.com/737888/185467681-e5fdb099-d99f-454b-8d9e-0760e5a6e588.png)](https://github.com/vrchat-community/template-package/generate)
-to start a new GitHub project based on this template.
-  * Choose a fitting repository name and description.
-  * Set the visibility to 'Public'. You can also choose 'Private' and change it later.
-  * You don't need to select 'Include all branches.'
-* Clone this repository locally using Git.
-  * If you're unfamiliar with Git and GitHub, [visit GitHub's documentation](https://docs.github.com/en/get-started/quickstart/git-and-github-learning-resources) to learn more.
-* Add the folder to Unity Hub and open it as a Unity Project.
-* After opening the project, wait while the VPM resolver is downloaded and added to your project.
-  * This gives you access to the VPM Package Maker and Package Resolver tools.
+1. [配布ページ](https://github.pito.run/vrc-restraint-scripts/)を開き、上部の**Add to VCC**ボタンを押してリポジトリを追加します。
+   ボタンが反応しない場合は、VCCの`Settings` → `Packages` → `Add Repository`に次のURLを貼り付けてください。
 
-## 🚇 Migrating Assets Package
-Full details at [Converting Assets to a VPM Package](https://vcc.docs.vrchat.com/guides/convert-unitypackage)
+   ```text
+   https://github.pito.run/vrc-restraint-scripts/index.json
+   ```
 
-## ✏️ Working on Your Package
+2. 対象プロジェクトの`Manage Project`から**Player Restraint Scripts**を追加します。
 
-* Delete the "Packages/com.vrchat.demo-template" directory or reuse it for your own package.
-  * If you reuse the package, don't forget to rename it and add generated meta files to your repository!
-* Update the `.gitignore` file in the "Packages" directory to include your package.
-  * For example, change `!com.vrchat.demo-template` to `!com.username.package-name`.
-  * `.gitignore` files normally *exclude* the contents of your "Packages" directory. This `.gitignore` in this template show how to *include* the demo package. You can easily change this out for your own package name.
-* Open the Unity project and work on your package's files in your favorite code editor.
-* When you're ready, commit and push your changes.
-* Once you've set up the automation as described below, you can easily publish new versions.
+### 手動で導入する
 
-## 🤖 Setting up the Automation
+[Releases](https://github.com/mecaota/vrc-restraint-scripts/releases)から`.unitypackage`をダウンロードし、プロジェクトにインポートしてください。
 
-Create a repository variable with the name and value described below.
-For details on how to create repository variables, see [Creating Configuration Variables for a Repository](https://docs.github.com/en/actions/learn-github-actions/variables#creating-configuration-variables-for-a-repository).
-Make sure you are creating a **repository variable**, and not a **repository secret**.
+## 動作環境
 
-* `PACKAGE_NAME`: the name of your package, like `com.vrchat.demo-template`.
+- Unity 2022.3
+- VRChat SDK - Worlds（UdonSharp）
 
-Finally, go to the "Settings" page for your repo, then choose "Pages", and look for the heading "Build and deployment". Change the "Source" dropdown from "Deploy from a branch" to "GitHub Actions".
+## 収録スクリプト
 
-That's it!
-Some other notes:
-* We highly recommend you keep the existing folder structure of this template.
-  * The root of the project should be a Unity project.
-  * Your packages should be in the "Packages" directory.
-  * If you deviate from this folder structure, you'll need to update the paths that assume your package is in the "Packages" directory on lines 24, 38, 41 and 57.
-* If you want to store and generate your web files in a folder other than "Website" in the root, you can change the `listPublicDirectory` item [here in build-listing.yml](.github/workflows/build-listing.yml#L17).
+| スクリプト | 概要 |
+| --- | --- |
+| [PlayerBoneConstraint](#playerboneconstraint) | プレイヤーの指定したボーンにオブジェクトを追従させる |
+| [PlayerRestraintConstraint](#playerrestraintconstraint) | プレイヤーをオブジェクトの位置に拘束する |
+| [MovePositionByContact](#movepositionbycontact) | 接触したプレイヤーを最寄りのボーンごとConstraintに割り当てる |
+| [ObjectPullPush](#objectpullpush) | オブジェクトを引き寄せる / 押し出す |
+| [StickyLine](#stickyline) | 2点間に糸のような線を描画する |
 
-## 🎉 Publishing a Release
+### 基本的な組み合わせ
 
-You can make a release by running the [Build Release](.github/workflows/release.yml) action. The version specified in your `package.json` file will be used to define the version of the release.
+「触れたプレイヤーをその場に拘束する」ギミックは次の構成で作れます。
 
-## 📃 Rebuilding the Listing
+1. 拘束位置にしたいオブジェクトに`PlayerRestraintConstraint`を追加します（`Target Player Id`は`-1`のままにします）。
+2. プレイヤーが触れるTrigger Colliderを持つオブジェクトに`MovePositionByContact`を追加し、`Bone Constraints`に手順1のオブジェクトを指定します。
+3. プレイヤーが触れると、接触したオブジェクトの位置にもっとも近いボーンが選ばれ、空いているConstraintにそのプレイヤーが割り当てられて拘束が始まります。
 
-Whenever you make a change to a release - manually publishing it, or manually creating, editing or deleting a release, the [Build Repo Listing](.github/workflows/build-listing.yml) action will make a new index of all the releases available, and publish them as a website hosted fore free on [GitHub Pages](https://pages.github.com/). This listing can be used by the VPM to keep your package up to date, and the generated index page can serve as a simple landing page with info for your package. The URL for your package will be in the format `https://username.github.io/repo-name`.
+### PlayerBoneConstraint
 
-## 🏠 Customizing the Landing Page (Optional)
+プレイヤーの指定したボーンにオブジェクトを追従させます。UnityのPosition Constraintのプレイヤー版です。
+`Target Player Id`を他のスクリプトから設定することで、動的に追従対象を切り替えられます。
 
-The action which rebuilds the listing also publishes a landing page. The source for this page is in `Website/index.html`. The automation system uses [Scriban](https://github.com/scriban/scriban) to fill in the objects like `{{ this }}` with information from the latest release's manifest, so it will stay up-to-date with the name, id and description that you provide there. You are welcome to modify this page however you want - just use the existing `{{ template.objects }}` to fill in that info wherever you like. The entire contents of your "Website" folder are published to your GitHub Page each time.
+| 項目 | 説明 |
+| --- | --- |
+| Target Player Id | 追従するプレイヤーの`playerId`。`-1`で未設定 |
+| Target Bone | 追従するボーン（`HumanBodyBones`） |
+| Follow Strength | 追従の強さ（0〜1）。1で即座に追従します |
+| Follow Position / Position Offset | 位置を追従するか、およびボーンの向きを基準にした位置オフセット |
+| Follow Rotation / Rotation Offset | 回転を追従するか、および回転オフセット（オイラー角） |
+| Follow Scale / Scale Offset | アバターの身長（目の高さ2mを基準）に応じてスケールを追従するか、およびスケール倍率。初期値は0なので利用時は設定してください |
+| Reset Position On Disable | オブジェクトの無効化、プレイヤーの退室、リスポーン時に初期位置へ戻すか |
 
-## 💻 Technical Stuff
+他のスクリプトから呼び出せるメソッド:
 
-You are welcome to make your own changes to the automation process to make it fit your needs, and you can create Pull Requests if you have some changes you think we should adopt. Here's some more info on the included automation:
+- `SetTargetPlayer(int playerId)` : 追従対象を設定します。プレイヤーが見つからない場合は解除されます
+- `SetTargetBone(HumanBodyBones bone)` : 追従するボーンを設定します
+- `Detach()` : 追従を解除して初期位置へ戻します
+- `IsAttached()` : 追従中かどうかを返します
 
-### Build Release Action
-[release.yml](/.github/workflows/release.yml)
+### PlayerRestraintConstraint
 
-This is a composite action combining a variety of existing GitHub Actions and some shell commands to create both a .zip of your Package and a .unitypackage. It creates a release which is named for the `version` in the `package.json` file found in your target Package, and publishes the zip, the unitypackage and the package.json file to this release.
+`PlayerBoneConstraint`を継承し、逆にプレイヤーの指定したボーンがオブジェクトの位置に来るようにプレイヤーを拘束します。
+割り当て直後の1フレームでオブジェクトがプレイヤーのボーン位置へ移動し、その後はプレイヤーの速度を制御してその位置に留めます。
 
-### Build Repo Listing
-[build-listing.yml](.github/workflows/build-listing.yml)
+`PlayerBoneConstraint`の設定に加えて次の項目があります。
 
-This is a composite action which builds a vpm-compatible [Repo Listing](https://vcc.docs.vrchat.com/vpm/repos) based on the releases you've created. In order to find all your releases and combine them into a listing, it checks out [another repository](https://github.com/vrchat-community/package-list-action) which has a [Nuke](https://nuke.build/) project which includes the VPM core lib to have access to its types and methods. This project will be expanded to include more functionality in the future - for now, the action just calls its `BuildRepoListing` target.
+| 項目 | 説明 |
+| --- | --- |
+| Ignore X / Ignore Y / Ignore Z | 指定した軸方向の拘束を無視します（その軸方向には自由に動けます） |
+
+- `Position Offset`は拘束位置（オブジェクト位置）へのオフセットとして使われます。
+- `Follow Strength`は拘束の強さ（速度の倍率）として使われます。
+- プレイヤーが接地している場合、拘束位置の高さはボーンの高さ以上に補正され、地面に埋まらないようになっています。
+
+### MovePositionByContact
+
+プレイヤーがこのオブジェクトに接触（`OnPlayerTriggerEnter` / `OnPlayerCollisionEnter` / `OnPlayerParticleCollision`）したとき、このオブジェクトの位置にもっとも近いプレイヤーのボーンを求め、空いている`PlayerBoneConstraint`にそのプレイヤーとボーンを割り当てます。
+割り当てられたConstraintのオブジェクトはアクティブ化されます。
+
+| 項目 | 説明 |
+| --- | --- |
+| Bone Constraints | 割り当て先の`PlayerBoneConstraint`（または`PlayerRestraintConstraint`）の配列。未指定の場合はアクティブな子オブジェクトから自動取得します |
+
+TriggerのColliderや、CollisionモジュールでSend Collision Messagesを有効にしたParticle Systemなど、プレイヤーとの接触イベントが発生する設定と組み合わせて使います。
+
+### ObjectPullPush
+
+対象オブジェクトをこのオブジェクトへ引き寄せる（Pull）、または押し出す（Push）スクリプトです。
+対象に`Rigidbody`があれば力を加え、なければ座標を直接移動します。
+VRC Pickupと組み合わせると、`Interact`でモードを切り替え、`Use`ボタンを押している間だけ動作させられます。
+
+| 項目 | 説明 |
+| --- | --- |
+| Min Distance | この距離より近い対象には力を加えません |
+| Target Objects | 引き寄せ / 押し出しの対象（複数可） |
+| Force | 引き寄せ / 押し出しの強さ |
+| Enable Interact Toggle | `Interact`でPull / Pushを切り替えるか |
+| Mode | `Pull`（引き寄せ）または`Push`（押し出し） |
+| Auto Update | 毎フレーム自動で実行するか。Pickupの`Use`中は自動的に有効になります |
+
+他のスクリプトから呼び出せるメソッド:
+
+- `SetPullMode(PullPushMode mode)` : Pull / Pushを設定します
+- `SetTargetObjects(GameObject[] objects)` : 対象オブジェクトを設定します
+- `DoAction()` : その場で1回実行します
+
+### StickyLine
+
+`Target Object`からこのオブジェクトへ、たわみや揺らぎのある糸状の線を`LineRenderer`で描画します。
+拘束したプレイヤーと拘束元をつなぐ糸などの表現に使えます。同じオブジェクトに`LineRenderer`が必要です。
+
+| 項目 | 説明 |
+| --- | --- |
+| Target Object | 線の始点となるオブジェクト |
+| Random Offset Range | 終点に加えるランダムな揺らぎの範囲 |
+| Line Count | 線の本数 |
+| Line Width | 線の太さ（両端が太く、中央が細くなります） |
+| Sag Amount | 下方向へのたわみ量。0で直線になります |
+| Segments Per Meter | 1mあたりの曲線の分割数 |
+
+## ライセンス
+
+[CC0 1.0 Universal](LICENSE)
+
+## 作者
+
+[mecaota](https://github.com/mecaota/)
