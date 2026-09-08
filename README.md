@@ -35,6 +35,9 @@
 | [ObjectPullPush](#objectpullpush) | オブジェクトを引き寄せる / 押し出す |
 | [StickyLine](#stickyline) | 2点間に糸のような線を描画する |
 
+いずれのスクリプトもネットワーク同期は行わず、各クライアントで独立に動作します。
+プレイヤーを動かす処理（`PlayerRestraintConstraint`）は自分自身のプレイヤーにのみ作用するため、他のスクリプトから`SetTargetPlayer`を呼ぶ場合は、対象プレイヤーのクライアントでも同じ呼び出しが行われるようにしてください。
+
 ### 基本的な組み合わせ
 
 「触れたプレイヤーをその場に拘束する」ギミックは次の構成で作れます。
@@ -56,7 +59,7 @@
 | Follow Position / Position Offset | 位置を追従するか、およびボーンの向きを基準にした位置オフセット |
 | Follow Rotation / Rotation Offset | 回転を追従するか、および回転オフセット（オイラー角） |
 | Follow Scale / Scale Offset | アバターの身長（目の高さ2mを基準）に応じてスケールを追従するか、およびスケール倍率。初期値は0なので利用時は設定してください |
-| Reset Position On Disable | オブジェクトの無効化、プレイヤーの退室、リスポーン時に初期位置へ戻すか |
+| Reset Position On Disable | オブジェクトの無効化、プレイヤーの退室、リスポーン時に追従を解除して初期位置へ戻すか。falseの場合は追従を続けます |
 
 他のスクリプトから呼び出せるメソッド:
 
@@ -69,6 +72,7 @@
 
 `PlayerBoneConstraint`を継承し、逆にプレイヤーの指定したボーンがオブジェクトの位置に来るようにプレイヤーを拘束します。
 割り当て直後の1フレームでオブジェクトがプレイヤーのボーン位置へ移動し、その後はプレイヤーの速度を制御してその位置に留めます。
+プレイヤーの速度制御は、そのプレイヤー自身のクライアントでのみ有効です。
 
 `PlayerBoneConstraint`の設定に加えて次の項目があります。
 
@@ -94,7 +98,8 @@ TriggerのColliderや、CollisionモジュールでSend Collision Messagesを有
 ### ObjectPullPush
 
 対象オブジェクトをこのオブジェクトへ引き寄せる（Pull）、または押し出す（Push）スクリプトです。
-対象に`Rigidbody`があれば力を加え、なければ座標を直接移動します。
+`SetTargetObjects()`で設定した対象に`Rigidbody`があれば力を加え、それ以外は座標を直接移動します。
+Inspectorで設定した対象は`Rigidbody`の有無にかかわらず座標を直接移動します。
 VRC Pickupと組み合わせると、`Interact`でモードを切り替え、`Use`ボタンを押している間だけ動作させられます。
 
 | 項目 | 説明 |
@@ -114,13 +119,13 @@ VRC Pickupと組み合わせると、`Interact`でモードを切り替え、`Us
 
 ### StickyLine
 
-`Target Object`からこのオブジェクトへ、たわみや揺らぎのある糸状の線を`LineRenderer`で描画します。
+`Target Object`からこのオブジェクトへ、たわみやばらつきのある糸状の線を`LineRenderer`で描画します。
 拘束したプレイヤーと拘束元をつなぐ糸などの表現に使えます。同じオブジェクトに`LineRenderer`が必要です。
 
 | 項目 | 説明 |
 | --- | --- |
 | Target Object | 線の始点となるオブジェクト |
-| Random Offset Range | 終点に加えるランダムな揺らぎの範囲 |
+| Random Offset Range | 終点に加えるランダムなばらつきの範囲。線ごとに`Start()`時に決まります。`Line Count`が2以上、または`Sag Amount`が0のときに有効です |
 | Line Count | 線の本数 |
 | Line Width | 線の太さ（両端が太く、中央が細くなります） |
 | Sag Amount | 下方向へのたわみ量。0で直線になります |
@@ -128,7 +133,7 @@ VRC Pickupと組み合わせると、`Interact`でモードを切り替え、`Us
 
 ## ライセンス
 
-[CC0 1.0 Universal](LICENSE)
+[MIT No Attribution (MIT-0)](LICENSE)
 
 ## 作者
 

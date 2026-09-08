@@ -119,13 +119,20 @@ async function readManifestFromZip(url) {
     throw new Error(`Could not download ${url}: ${response.status} ${response.statusText}`);
   }
   const bytes = new Uint8Array(await response.arrayBuffer());
-  const entries = unzipSync(bytes, { filter: (file) => file.name === 'package.json' });
-  const entry = entries['package.json'];
-  if (!entry) {
+
+  // A broken asset must not take the whole listing down, so zip/JSON errors only skip this asset.
+  let manifest;
+  try {
+    const entries = unzipSync(bytes, { filter: (file) => file.name === 'package.json' });
+    const entry = entries['package.json'];
+    if (!entry) {
+      return null;
+    }
+    manifest = JSON.parse(new TextDecoder('utf-8').decode(entry));
+  } catch (error) {
+    console.warn(`Could not read package.json from ${url}: ${error.message}`);
     return null;
   }
-
-  const manifest = JSON.parse(new TextDecoder('utf-8').decode(entry));
   if (typeof manifest.name !== 'string' || typeof manifest.version !== 'string') {
     return null;
   }
@@ -134,23 +141,48 @@ async function readManifestFromZip(url) {
   return manifest;
 }
 
+// The manifest that drives the landing page: display metadata (name, description,
+// license, author) follows the package.json in the repository so it matches the
+// README on the same branch, while the version is the latest release.
 function pickPrimaryManifest(manifests) {
+  const latest = pickLatestRelease(manifests);
+  const local = readLocalManifest();
+  if (!latest && !local) {
+    throw new Error('Could not determine the package to show. Set PACKAGE_NAME or publish a release.');
+  }
+  if (!latest) {
+    console.warn(`No release found for ${packageName}; using the repository package.json for the landing page`);
+    return local;
+  }
+  return local ? { ...latest, ...local, version: latest.version } : latest;
+}
+
+function pickLatestRelease(manifests) {
   let candidates = packageName ? manifests.filter((m) => m.name === packageName) : manifests;
   const stable = candidates.filter((m) => !parseVersion(m.version)?.prerelease);
   if (stable.length > 0) {
     candidates = stable;
   }
-  if (candidates.length > 0) {
-    return candidates.slice().sort((a, b) => compareVersions(b.version, a.version))[0];
+  if (candidates.length === 0) {
+    return null;
   }
+  return candidates.slice().sort((a, b) => compareVersions(b.version, a.version))[0];
+}
 
-  // Fall back to the manifest in the repository when nothing has been released yet.
-  const localPath = path.join(root, 'Packages', packageName, 'package.json');
-  if (packageName && existsSync(localPath)) {
-    console.warn(`No release found for ${packageName}; using ${path.relative(root, localPath)} for the landing page`);
-    return JSON.parse(readFileSync(localPath, 'utf8'));
+function readLocalManifest() {
+  if (!packageName) {
+    return null;
   }
-  throw new Error('Could not determine the package to show. Set PACKAGE_NAME or publish a release.');
+  const localPath = path.join(root, 'Packages', packageName, 'package.json');
+  if (!existsSync(localPath)) {
+    return null;
+  }
+  return JSON.parse(stripBom(readFileSync(localPath, 'utf8')));
+}
+
+// Unity and Windows editors tend to save UTF-8 files with a byte order mark.
+function stripBom(text) {
+  return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
 }
 
 function buildListing(manifests, primary) {
@@ -199,7 +231,7 @@ function renderReadme() {
   if (!existsSync(readmePath)) {
     return '';
   }
-  let markdown = readFileSync(readmePath, 'utf8').replace(/^﻿/, '');
+  let markdown = stripBom(readFileSync(readmePath, 'utf8'));
   // The page header already shows the package name, so drop the leading H1.
   markdown = markdown.replace(/^\s*#\s[^\n]*\n/, '');
 
