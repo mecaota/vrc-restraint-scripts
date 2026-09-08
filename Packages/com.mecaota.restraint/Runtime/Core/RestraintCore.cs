@@ -516,26 +516,28 @@ public class RestraintCore : UdonSharpBehaviour
     /// <summary>主要 19 ボーンのうち point に最も近いボーンを返す(アバターに無いボーンは無視。見つからなければ Hips)</summary>
     public static HumanBodyBones FindClosestBone(VRCPlayerApi player, Vector3 point)
     {
-        HumanBodyBones[] candidates = new HumanBodyBones[]
+        // enum 配列の生成(new HumanBodyBones[])は Udon に公開されていないため int で持つ
+        int[] candidates = new int[]
         {
-            HumanBodyBones.Hips, HumanBodyBones.Spine, HumanBodyBones.Chest, HumanBodyBones.Neck, HumanBodyBones.Head,
-            HumanBodyBones.LeftShoulder, HumanBodyBones.LeftUpperArm, HumanBodyBones.LeftLowerArm, HumanBodyBones.LeftHand,
-            HumanBodyBones.RightShoulder, HumanBodyBones.RightUpperArm, HumanBodyBones.RightLowerArm, HumanBodyBones.RightHand,
-            HumanBodyBones.LeftUpperLeg, HumanBodyBones.LeftLowerLeg, HumanBodyBones.LeftFoot,
-            HumanBodyBones.RightUpperLeg, HumanBodyBones.RightLowerLeg, HumanBodyBones.RightFoot,
+            (int)HumanBodyBones.Hips, (int)HumanBodyBones.Spine, (int)HumanBodyBones.Chest, (int)HumanBodyBones.Neck, (int)HumanBodyBones.Head,
+            (int)HumanBodyBones.LeftShoulder, (int)HumanBodyBones.LeftUpperArm, (int)HumanBodyBones.LeftLowerArm, (int)HumanBodyBones.LeftHand,
+            (int)HumanBodyBones.RightShoulder, (int)HumanBodyBones.RightUpperArm, (int)HumanBodyBones.RightLowerArm, (int)HumanBodyBones.RightHand,
+            (int)HumanBodyBones.LeftUpperLeg, (int)HumanBodyBones.LeftLowerLeg, (int)HumanBodyBones.LeftFoot,
+            (int)HumanBodyBones.RightUpperLeg, (int)HumanBodyBones.RightLowerLeg, (int)HumanBodyBones.RightFoot,
         };
         HumanBodyBones best = HumanBodyBones.Hips;
         float bestSqr = float.MaxValue;
         if (player == null || !player.IsValid()) { return best; }
         for (int i = 0; i < candidates.Length; i++)
         {
-            Vector3 bonePosition = player.GetBonePosition(candidates[i]);
+            HumanBodyBones bone = (HumanBodyBones)candidates[i];
+            Vector3 bonePosition = player.GetBonePosition(bone);
             if (bonePosition == Vector3.zero) { continue; }
             float sqr = Vector3.SqrMagnitude(bonePosition - point);
             if (sqr < bestSqr)
             {
                 bestSqr = sqr;
-                best = candidates[i];
+                best = bone;
             }
         }
         return best;
