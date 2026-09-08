@@ -24,6 +24,9 @@ public class PlayerBoneConstraint : UdonSharpBehaviour
     [Tooltip("ON なら Core が装着したボーンに追従する。OFF なら下の targetBone に追従する")]
     public bool useCoreBone = false;
 
+    [Tooltip("反応する装着元ID(channel)。-1 ならどの装着元にも反応する。複数ギミックで Core を共有するとき、自分のギミックの装着だけに反応させる")]
+    public int channel = RestraintCore.CHANNEL_ANY;
+
     [Header("ターゲット設定")]
     [Tooltip("追従するボーン(useCoreBone=OFF のとき)")]
     public HumanBodyBones targetBone = HumanBodyBones.Hips;
@@ -126,7 +129,7 @@ public class PlayerBoneConstraint : UdonSharpBehaviour
     /// <summary>Core の状態を読み直して追従の開始/停止を合わせる</summary>
     public void Resync()
     {
-        int id = core != null ? core.targetPlayerId : -1;
+        int id = (core != null && core.IsAttachedOnChannel(channel)) ? core.targetPlayerId : -1;
         if (id >= 0)
         {
             if (!_following || targetPlayerId != id)
@@ -159,7 +162,8 @@ public class PlayerBoneConstraint : UdonSharpBehaviour
     public override void PostLateUpdate()
     {
         if (core == null) { return; }
-        if (core.targetPlayerId != targetPlayerId) { Resync(); } // 配線漏れ・取りこぼしのフォールバック
+        int coreId = core.IsAttachedOnChannel(channel) ? core.targetPlayerId : -1;
+        if (coreId != targetPlayerId) { Resync(); } // 配線漏れ・取りこぼし・channel 違いのフォールバック
         if (!_following) { return; }
         VRCPlayerApi player = ResolvePlayer();
         if (player == null) { return; }

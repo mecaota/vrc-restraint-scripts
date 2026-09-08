@@ -16,6 +16,9 @@ public class MovePositionByContact : UdonSharpBehaviour
     [Tooltip("装着先の RestraintCore。空なら子から自動収集する")]
     public RestraintCore[] cores;
 
+    [Tooltip("装着時に Core へ記録する装着元ID(channel)")]
+    public int channel = 0;
+
     void Start()
     {
         if (cores == null || cores.Length == 0)
@@ -50,7 +53,7 @@ public class MovePositionByContact : UdonSharpBehaviour
         {
             RestraintCore core = cores[i];
             if (core == null || core.targetPlayerId >= 0) { continue; }
-            if (core.AttachToBone(player.playerId, bone)) { return; }
+            if (core.AttachToBoneOnChannel(player.playerId, bone, channel)) { return; }
         }
     }
 }

@@ -38,3 +38,4 @@ FukuroUdon は必須ではありません。装着のトリガーは `ActiveRela
 - `PlayerBoneConstraint` / `PlayerRestraintConstraint` は Core を参照する追従器になり、`targetPlayerId` の書き込み API(`SetTargetPlayer` / `SetTargetBone` / `Detach`)を廃止。`resetPositionOnDisable` は `resetOnDetach` に改名
 - `PlayerPullController` / `CocoonSpinStation` / `MovePositionByContact` の参照は `PlayerBoneConstraint[]` から `RestraintCore[]` に変更(`cocoons` / `exclusiveCores` / `cores`)
 - `StickyLine` に `core`(装着中だけ描画)を追加
+- Core に装着元ID(`channel`)の同期を追加。複数ギミックで Core プールを共有でき、追従器は自分の `channel` の装着だけに反応する

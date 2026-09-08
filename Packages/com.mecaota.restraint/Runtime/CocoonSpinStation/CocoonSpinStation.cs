@@ -29,6 +29,9 @@ public class CocoonSpinStation : UdonSharpBehaviour
     [Tooltip("監視する繭(RestraintCore)。どれかに自分のplayerIdが入っていて糸疣へ到達したら着席する")]
     public RestraintCore[] cocoons;
 
+    [Tooltip("cocoons の装着元ID(channel)。この channel で装着されたものだけを繭とみなす。-1 なら全て")]
+    public int channel = RestraintCore.CHANNEL_ANY;
+
     [Tooltip("到達判定に使う糸疣アンカー(PlayerPullControllerのpullAnchorと同じで良い)")]
     public Transform pullAnchor;
 
@@ -97,7 +100,7 @@ public class CocoonSpinStation : UdonSharpBehaviour
         for (int i = 0; i < cocoons.Length; i++)
         {
             var c = cocoons[i];
-            if (c != null && c.targetPlayerId == playerId) { return true; }
+            if (c != null && c.targetPlayerId == playerId && c.IsAttachedOnChannel(channel)) { return true; }
         }
         return false;
     }

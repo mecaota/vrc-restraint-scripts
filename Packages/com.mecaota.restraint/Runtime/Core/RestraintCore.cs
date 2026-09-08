@@ -36,10 +36,15 @@ public class RestraintCore : UdonSharpBehaviour
     /// <summary>同じ GameObject 上の他 UdonBehaviour へ送る固定イベント名(解除)</summary>
     public const string EVENT_DETACH = "OnBoneDetach";
     public const int NO_PLAYER = -1;
+    /// <summary>追従器の channel に指定すると、どの装着元(channel)にも反応する</summary>
+    public const int CHANNEL_ANY = -1;
 
     [Header("ターゲット設定")]
     [Tooltip("ボーン未指定で装着したとき(AttachLocalPlayer / Attach / Toggle)に使うボーン")]
     public HumanBodyBones defaultBone = HumanBodyBones.Hips;
+
+    [Tooltip("装着元ID(channel)の既定値。複数のギミックが同じ Core プールを共有するとき、どのギミックが装着したかを同期し、追従器が自分の channel の装着だけに反応できるようにする")]
+    public int defaultChannel = 0;
 
     [Header("位置追従設定(この GameObject 自身)")]
     [Tooltip("自身の位置をボーンに追従させるか。ハブ専用なら OFF")]
@@ -102,15 +107,21 @@ public class RestraintCore : UdonSharpBehaviour
     [Tooltip("AttachRequested / SetBoneRequested が使うボーン")]
     public HumanBodyBones requestedBone = HumanBodyBones.Hips;
 
+    [Tooltip("AttachRequested が使う装着元ID(channel)")]
+    public int requestedChannel = 0;
+
     // ---- 読み取り専用の状態ミラー(非アクティブでも読めるようフィールドで公開。外部から書き込まないこと)
     [HideInInspector] public int targetPlayerId = NO_PLAYER;
     [HideInInspector] public HumanBodyBones targetBone = HumanBodyBones.Hips;
+    /// <summary>現在の装着元ID(channel)のミラー。未装着時は直前の値が残るので targetPlayerId と併せて読む</summary>
+    [HideInInspector] public int channel = 0;
 
     // ---- 同期状態(正)。書き込みはオーナー取得後、RequestSerialization とセットで行う
     [UdonSynced] private int _syncPlayerId = NO_PLAYER;
     [UdonSynced] private byte _syncBone = (byte)HumanBodyBones.Hips;
     [UdonSynced] private Vector3 _syncPosOffset = Vector3.zero;
     [UdonSynced] private Quaternion _syncRotOffset = Quaternion.identity;
+    [UdonSynced] private int _syncChannel = 0;
 
     // ---- 実行時
     private int _appliedPlayerId = NO_PLAYER; // 最後にイベントを発火した playerId(遷移検出)
@@ -188,17 +199,23 @@ public class RestraintCore : UdonSharpBehaviour
         return AttachToBone(playerId, defaultBone);
     }
 
-    /// <summary>requestedPlayerId / requestedBone で装着する(SendCustomEvent 可)</summary>
+    /// <summary>requestedPlayerId / requestedBone / requestedChannel で装着する(SendCustomEvent 可)</summary>
     public void AttachRequested()
     {
-        AttachToBone(requestedPlayerId, requestedBone);
+        AttachToBoneOnChannel(requestedPlayerId, requestedBone, requestedChannel);
+    }
+
+    /// <summary>指定プレイヤーの指定ボーンに defaultChannel で装着する</summary>
+    public bool AttachToBone(int playerId, HumanBodyBones bone)
+    {
+        return AttachToBoneOnChannel(playerId, bone, defaultChannel);
     }
 
     /// <summary>
-    /// 指定プレイヤーの指定ボーンに装着する。呼んだクライアントがオーナーになり同期する。
+    /// 指定プレイヤーの指定ボーンに、装着元ID(channel)付きで装着する。呼んだクライアントがオーナーになり同期する。
     /// 占有中(別プレイヤー)は allowReplace が OFF なら無視して false を返す。
     /// </summary>
-    public bool AttachToBone(int playerId, HumanBodyBones bone)
+    public bool AttachToBoneOnChannel(int playerId, HumanBodyBones bone, int attachChannel)
     {
         Initialize();
         if (_localPlayer == null) { return false; }
@@ -209,6 +226,7 @@ public class RestraintCore : UdonSharpBehaviour
         Networking.SetOwner(_localPlayer, gameObject);
         _syncPlayerId = playerId;
         _syncBone = (byte)(int)bone;
+        _syncChannel = attachChannel;
         CaptureOffsets(player, bone);
         ApplyState();
         RequestSerialization();
@@ -281,9 +299,9 @@ public class RestraintCore : UdonSharpBehaviour
 
     /// <summary>ネットワーク経由で装着を依頼する入口(オーナー宛てに送ると先着順が保証される)</summary>
     [NetworkCallable]
-    public void RequestAttach(int playerId, int bone)
+    public void RequestAttach(int playerId, int bone, int attachChannel)
     {
-        AttachToBone(playerId, (HumanBodyBones)bone);
+        AttachToBoneOnChannel(playerId, (HumanBodyBones)bone, attachChannel);
     }
 
     /// <summary>ネットワーク経由で解除を依頼する入口</summary>
@@ -303,6 +321,12 @@ public class RestraintCore : UdonSharpBehaviour
     public bool IsAttachedTo(int playerId)
     {
         return playerId >= 0 && targetPlayerId == playerId;
+    }
+
+    /// <summary>装着中で、かつ装着元が指定 channel か(channel が CHANNEL_ANY なら装着中なら true)</summary>
+    public bool IsAttachedOnChannel(int filterChannel)
+    {
+        return targetPlayerId >= 0 && (filterChannel == CHANNEL_ANY || channel == filterChannel);
     }
 
     public bool IsLocalPlayerAttached()
@@ -340,6 +364,7 @@ public class RestraintCore : UdonSharpBehaviour
     {
         targetPlayerId = _syncPlayerId;
         targetBone = (HumanBodyBones)(int)_syncBone;
+        channel = _syncChannel;
         if (targetPlayerId == _appliedPlayerId) { return; }
 
         int previous = _appliedPlayerId;

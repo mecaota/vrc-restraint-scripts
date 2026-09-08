@@ -19,6 +19,9 @@ public class PlayerRestraintConstraint : UdonSharpBehaviour
     [Tooltip("装着状態を持つ RestraintCore。未設定なら同じ GameObject → 親 の順で探す")]
     public RestraintCore core;
 
+    [Tooltip("反応する装着元ID(channel)。-1 ならどの装着元にも反応する")]
+    public int channel = RestraintCore.CHANNEL_ANY;
+
     [Header("ターゲット設定")]
     [Tooltip("拘束の基準にするプレイヤーのボーン(このボーンがオブジェクト位置に来る)")]
     public HumanBodyBones targetBone = HumanBodyBones.Hips;
@@ -30,8 +33,8 @@ public class PlayerRestraintConstraint : UdonSharpBehaviour
     [Tooltip("拘束位置のオフセット(ワールド座標)")]
     public Vector3 positionOffset = Vector3.zero;
 
-    [Tooltip("装着直後の最初の更新でオブジェクトをプレイヤーのボーン位置へ合わせるか(現在地で拘束を始める)")]
-    public bool snapToPlayerOnAttach = true;
+    [Tooltip("装着直後の最初の更新でオブジェクト(アンカー)をプレイヤーのボーン位置へ動かすか。OFF ならアンカーは固定でプレイヤーをそこへ引き寄せる(吊り下げ等)。ON は「現在地で拘束を始める」用途")]
+    public bool snapToPlayerOnAttach = false;
 
     [Header("軸無視設定")]
     [Tooltip("X軸を無視するか")]
@@ -104,7 +107,7 @@ public class PlayerRestraintConstraint : UdonSharpBehaviour
     /// <summary>Core の状態を読み直し、対象が自分なら拘束を開始、そうでなければ停止する</summary>
     public void Resync()
     {
-        int id = core != null ? core.targetPlayerId : -1;
+        int id = (core != null && core.IsAttachedOnChannel(channel)) ? core.targetPlayerId : -1;
         targetPlayerId = id;
         bool shouldDrive = id >= 0 && _localPlayer != null && id == _localPlayer.playerId;
         if (shouldDrive && !_active)
@@ -125,7 +128,8 @@ public class PlayerRestraintConstraint : UdonSharpBehaviour
     private void Update()
     {
         if (core == null) { return; }
-        if (core.targetPlayerId != targetPlayerId) { Resync(); } // 取りこぼしのフォールバック
+        int coreId = core.IsAttachedOnChannel(channel) ? core.targetPlayerId : -1;
+        if (coreId != targetPlayerId) { Resync(); } // 取りこぼし・channel 違いのフォールバック
         if (!_active) { return; }
         if (_localPlayer == null || !_localPlayer.IsValid()) { return; }
 

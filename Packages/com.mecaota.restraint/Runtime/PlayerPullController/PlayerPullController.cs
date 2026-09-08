@@ -31,8 +31,14 @@ public class PlayerPullController : UdonSharpBehaviour
     [Tooltip("監視する繭(RestraintCore)。どれかに自分の playerId が入っていたら引き寄せを駆動する")]
     public RestraintCore[] cocoons;
 
+    [Tooltip("cocoons の装着元ID(channel)。この channel で装着されたものだけを繭とみなす。-1 なら全て")]
+    public int channel = RestraintCore.CHANNEL_ANY;
+
     [Tooltip("吊り下げ拘束の RestraintCore（同時に SetVelocity すると競合するので、これに自分が入っている間は引き寄せを止める）")]
     public RestraintCore[] exclusiveCores;
+
+    [Tooltip("exclusiveCores の装着元ID(channel)。-1 なら全て")]
+    public int exclusiveChannel = RestraintCore.CHANNEL_ANY;
 
     [Tooltip("引き寄せ（引っ張り上げ）が始まっている間オフにするオブジェクト。糸玉パーティクルなど。捕縛が解けると自動で戻す（ローカルのみ）")]
     public GameObject hideOnPull;
@@ -96,11 +102,11 @@ public class PlayerPullController : UdonSharpBehaviour
 
         // 着弾（繭に捕縛）されたら糸玉パーティクルをオフにする。オンには戻さない
         // （巣に乗っている間の発射オン/オフは既存の WebAreaSensor が制御するので、そちらを壊さない）
-        bool captured = IsHeldBy(cocoons, myId);
+        bool captured = IsHeldBy(cocoons, channel, myId);
         if (hideOnPull != null && captured && hideOnPull.activeSelf) { hideOnPull.SetActive(false); }
 
         // 吊り下げ等で拘束中なら引き寄せを止める（SetVelocity競合の回避）
-        if (IsHeldBy(exclusiveCores, myId)) { _driving = false; _ramp = 0f; return; }
+        if (IsHeldBy(exclusiveCores, exclusiveChannel, myId)) { _driving = false; _ramp = 0f; return; }
 
         // 繭スロットに自分が入っているか（捕縛判定）
         if (!captured) { _driving = false; _ramp = 0f; return; }
@@ -148,13 +154,13 @@ public class PlayerPullController : UdonSharpBehaviour
     }
 
     // cores のどれかが playerId を装着しているか(targetPlayerId は同期状態のミラー)
-    private bool IsHeldBy(RestraintCore[] cores, int playerId)
+    private bool IsHeldBy(RestraintCore[] cores, int filterChannel, int playerId)
     {
         if (cores == null) { return false; }
         for (int i = 0; i < cores.Length; i++)
         {
             var c = cores[i];
-            if (c != null && c.targetPlayerId == playerId) { return true; }
+            if (c != null && c.targetPlayerId == playerId && c.IsAttachedOnChannel(filterChannel)) { return true; }
         }
         return false;
     }

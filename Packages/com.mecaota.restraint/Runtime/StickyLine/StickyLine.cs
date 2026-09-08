@@ -17,6 +17,9 @@ public class StickyLine : UdonSharpBehaviour
     [Tooltip("設定すると、この RestraintCore が装着中のときだけ糸を描く(常時アクティブな繭の糸を隠す用)")]
     public RestraintCore core;
 
+    [Tooltip("core の装着元ID(channel)がこの値のときだけ描く。-1 ならどの装着元でも描く")]
+    public int channel = RestraintCore.CHANNEL_ANY;
+
     [Header("糸の設定")]
     [Tooltip("ランダムオフセットの範囲（例: 0.1なら-0.1～0.1の範囲でランダムに揺らぎが入る）")]
     public float randomOffsetRange = 0.1f;
@@ -70,7 +73,7 @@ public class StickyLine : UdonSharpBehaviour
     void Update()
     {
         if (lineRenderer == null) return;
-        bool visible = core == null || core.targetPlayerId >= 0;
+        bool visible = core == null || core.IsAttachedOnChannel(channel);
         if (lineRenderer.enabled != visible) { lineRenderer.enabled = visible; }
         if (!visible) return;
         UpdateLineRenderer();
