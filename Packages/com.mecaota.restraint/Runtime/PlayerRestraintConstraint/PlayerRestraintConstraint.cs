@@ -53,6 +53,9 @@ public class PlayerRestraintConstraint : UdonSharpBehaviour
     /// <summary>Core が装着しているプレイヤーID(ミラー。-1=未装着)。自分でなくても入る。読み取り専用</summary>
     [HideInInspector] public int targetPlayerId = -1;
 
+    /// <summary>外部スクリプト(揺れ等)が毎フレーム書き込む動的な拘束位置オフセット(ワールド座標)。解除時に 0 へ戻る</summary>
+    [HideInInspector] public Vector3 dynamicOffset = Vector3.zero;
+
     private VRCPlayerApi _localPlayer;
     private Vector3 _initialLocalPosition;
     private bool _initialized = false;
@@ -88,6 +91,7 @@ public class PlayerRestraintConstraint : UdonSharpBehaviour
         if (_active && resetOnDetach) { transform.localPosition = _initialLocalPosition; }
         _active = false;
         targetPlayerId = -1;
+        dynamicOffset = Vector3.zero;
     }
 
     // ------------------------------------------------------------------ Core からのイベント
@@ -119,6 +123,7 @@ public class PlayerRestraintConstraint : UdonSharpBehaviour
         {
             _active = false;
             _firstUpdate = false;
+            dynamicOffset = Vector3.zero;
             if (resetOnDetach) { transform.localPosition = _initialLocalPosition; }
         }
     }
@@ -149,7 +154,7 @@ public class PlayerRestraintConstraint : UdonSharpBehaviour
 
     private void RestrainPlayer(VRCPlayerApi player, Vector3 bonePosition)
     {
-        Vector3 restraintPosition = transform.position + positionOffset;
+        Vector3 restraintPosition = transform.position + positionOffset + dynamicOffset;
         // 地面にいる場合は拘束位置のYをプレイヤーのY以上にする(地面に埋まらないように)
         if (player.IsPlayerGrounded()) { restraintPosition.y = Mathf.Max(restraintPosition.y, bonePosition.y); }
 

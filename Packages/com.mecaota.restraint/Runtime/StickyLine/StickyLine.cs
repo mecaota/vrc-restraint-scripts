@@ -31,6 +31,8 @@ public class StickyLine : UdonSharpBehaviour
     public float sagAmount = 0.1f;
     [Tooltip("距離1メートルあたりのベジエ曲線分割数")]
     public int segmentsPerMeter = 1;
+    [Tooltip("ON なら LineRenderer に設定した太さ(Width カーブ・倍率)をそのまま使い、lineWidth と中央を細くするカーブで上書きしない(捕縛の蜘蛛糸と同じ太さ一定の糸にする用)")]
+    public bool keepRendererWidth = false;
 
     private LineRenderer lineRenderer;
     private Vector3[] randomOffsets;
@@ -46,17 +48,21 @@ public class StickyLine : UdonSharpBehaviour
         }
         
         // 線の太さのカーブを設定（中点で太く、両端で細く）
-        AnimationCurve widthCurve = new AnimationCurve();
-        widthCurve.AddKey(0f, 1f);  // 始点
-        widthCurve.AddKey(0.05f, 0.5f);  // 始点直近
-        widthCurve.AddKey(0.1f, 0.4f);
-        widthCurve.AddKey(0.5f, 0.2f);  // 中点（細くする）
-        widthCurve.AddKey(0.9f, 0.4f);
-        widthCurve.AddKey(0.95f, 0.5f);  // 終点直近
-        widthCurve.AddKey(1f, 1f);  // 終点
-        
-        lineRenderer.widthCurve = widthCurve;
-        lineRenderer.widthMultiplier = lineWidth;
+        // keepRendererWidth が ON なら LineRenderer 側の太さをそのまま使う
+        if (!keepRendererWidth)
+        {
+            AnimationCurve widthCurve = new AnimationCurve();
+            widthCurve.AddKey(0f, 1f);  // 始点
+            widthCurve.AddKey(0.05f, 0.5f);  // 始点直近
+            widthCurve.AddKey(0.1f, 0.4f);
+            widthCurve.AddKey(0.5f, 0.2f);  // 中点（細くする）
+            widthCurve.AddKey(0.9f, 0.4f);
+            widthCurve.AddKey(0.95f, 0.5f);  // 終点直近
+            widthCurve.AddKey(1f, 1f);  // 終点
+
+            lineRenderer.widthCurve = widthCurve;
+            lineRenderer.widthMultiplier = lineWidth;
+        }
 
         // lineCount数だけランダムな揺らぎを生成
         randomOffsets = new Vector3[lineCount];

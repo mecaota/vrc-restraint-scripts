@@ -11,6 +11,8 @@ RestraintCore (Runtime/Core)      … 基幹。装着状態(プレイヤー/ボ�
 ├ MovePositionByContact           … 接触したプレイヤーの最寄りボーンへ空き Core を装着する
 ├ PlayerPullController            … 繭(Core)に捕まった自分を引き寄せる
 └ CocoonSpinStation               … 引き寄せの到達で VRCStation に座らせる
+
+PlayerMovementLock                … (Core と独立)複数ギミックからの減速・ジャンプ・重力の制限を重ねて掛け、元に戻す共有部品
 ```
 
 FukuroUdon は必須ではありません。装着のトリガーは `ActiveRelayToUdonBehaviour` などから `RestraintCore` の
@@ -31,6 +33,16 @@ FukuroUdon は必須ではありません。装着のトリガーは `ActiveRela
 ## CocoonSpinStation
 
 糸疣まで引き寄せられて到達したローカルプレイヤーを`VRCStation`に着席させ、`PlayerMobility=Immobilize`で移動不能にします。横倒し(頭と足が地面と平行)＋頭と足を軸にしたループ回転はVRCStationの`animatorController`に割り当てたアニメが担い(着席で自動再生・着席中はアバターのアニメも全員へ同期)、本スクリプトはTransformを回さず着席・繭連動・退席だけを受け持ちます。捕縛判定は`cocoons`(繭の `RestraintCore`)を毎フレーム監視し、`pullAnchor`(糸疣)へ`grabDistance`まで近づいたら着席、繭が外れると自動で降ります。`UseStation`/`ExitStation`はローカル専用・着席事実はVRChatが自動同期するため`SyncMode None`。Station1台=同時1人対応。横倒し回転アニメはワールド側で用意します(本リポジトリには含みません)。
+
+## PlayerMovementLock
+
+ローカルプレイヤーの移動速度・ジャンプ・重力を、複数のギミックから重ねて絞るための共有部品(1 ワールドに 1 つ)。各ギミックは自分を holder として `Hold(holder, move, jump, gravity)` / `Release(holder)` を呼ぶだけで、元の値の保存と復元はこの部品が受け持ちます。項目ごとに一番強い制限(最小値)を使うので掛けた順に依存せず、最後の holder が外れると、この部品が入れた値のままの項目だけ元に戻します。リスポーンで全部外れます。ギミックの Prefab からは `PlayerMovementLock.Resolve(cached, prefab)` で名前検索・無ければ Prefab から生成して使えます。詳細は `Runtime/PlayerMovementLock/readme.md`。
+
+## 0.3.0 の変更点
+
+- `PlayerMovementLock` を新設。各ギミックが自前で速度を保存・復元していたため、減速が重なると解除の順序しだいで減速が残る問題を、共有部品への `Hold` / `Release` で解消
+- `StickyLine` に `keepRendererWidth` を追加。ON なら LineRenderer に設定した太さをそのまま使い、`lineWidth` と中央を細くするカーブで上書きしない(捕縛の蜘蛛糸と同じ太さ一定の糸にする用。吊り下げギミックで使用)
+- `PlayerRestraintConstraint` に `dynamicOffset` を追加。外部スクリプト(揺れなど)が毎フレーム書き込む拘束位置のオフセット(ワールド座標)で、解除時に 0 へ戻る
 
 ## 0.2.0 の変更点(旧バージョンからの移行)
 
