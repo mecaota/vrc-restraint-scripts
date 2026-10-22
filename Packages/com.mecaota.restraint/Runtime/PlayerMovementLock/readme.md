@@ -58,3 +58,55 @@ if (Lock() != null) movementLock.Release(this);
 ## 設定項目
 
 - **Fallback Gravity**: 元の重力がほぼ 0(飛行中など)だったときに、解除で戻す重力(既定 1)
+
+## PlayerSpeedLimiter(イベントで速度を設定・増減・リセットする)
+
+ローカルプレイヤーの移動速度(歩く / 走る / 横移動)を、`SendCustomEvent` で操作するための部品です。同じフォルダの `PlayerSpeedLimiter.cs` を付けた GameObject を置き、
+ほかのギミック(ボタン、トリガーなど)からイベント名で呼びます。元の速度の保存と復元は `PlayerMovementLock` が受け持つので、
+別のギミックの減速と重なっても、解除の順番に関係なく正しく戻ります。
+
+速度は「元の速度の何倍か」(倍率)で扱います。1 = 元の速度、0.5 = 半分、0 = 移動できない、です。
+
+| イベント | 内容 |
+|---|---|
+| `SetSpeed` | 倍率を `Set Ratio` にする |
+| `AddSpeed` | 倍率を `Step Ratio` だけ増やす |
+| `SubtractSpeed` | 倍率を `Step Ratio` だけ減らす |
+| `ResetSpeed` | 倍率を `Default Ratio`(元の速度)に戻す |
+
+- どれも引数なしです。値はインスペクタで決めておきます。スクリプトから別の値で呼びたいときは、先に `setRatio` などのフィールドへ書いてから呼びます
+- 掛ける倍率は `Min Ratio`〜`Max Ratio` に収めます。ただし、増減で範囲の外に出た分も覚えています。そのため `SubtractSpeed` と `AddSpeed` を対で呼べば、何回重なっても必ず元に戻ります
+- 倍率が 1 のときは制限を外します。ほかのギミックの制限と重なったときは、一番遅いものが使われます
+- `GetRatio()` で、いま掛けている倍率(範囲に収めた後の値)を読めます
+- 速度はローカル専用なので同期しません。送り手は自分のクライアントで、自分に関係するときだけ送ってください
+- 送り手はこの部品の型を知らず、イベント名だけで呼ぶので、送り手のパッケージは restraint が無くてもコンパイルできます
+
+### 使い方の例
+
+- **ボタンで速さを変える**: 「速く」ボタンから `AddSpeed`、「遅く」ボタンから `SubtractSpeed`、「戻す」ボタンから `ResetSpeed`。`Max Ratio` を 1 より大きくすれば、元より速くもできます
+- **入っている間だけ遅くなる床**: トリガーに入ったら `SetSpeed`、出たら `ResetSpeed`
+- **重なることがある減速エリア**: 各エリアに入ったら `SubtractSpeed`、出たら `AddSpeed`。何か所から送っても 1 つで済みます
+  - いくつ重なっても 1/3 にしたい(重ねて遅くしない)ときは、`Step Ratio` 0.6667・`Min Ratio` 0.3333
+  - 重なるほど遅くしたいときは、`Step Ratio` を小さく(例: 0.3 なら 1 か所で 0.7、2 か所で 0.4)
+  - 場所ごとに遅さを変えたいときは、遅さごとに `PlayerSpeedLimiter` を分けます
+- **拘束中は歩けなくする**: 下の「RestraintCore とつなぐ」で `Set Ratio` を 0 に
+
+### RestraintCore とつなぐ
+
+`Core` に `RestraintCore` を入れ、その Core の `Receivers` にこの部品を入れると、Core に自分が装着されたら `SetSpeed`、外れたら `ResetSpeed` します(他人の装着では動きません)。
+Core と同じ GameObject には置かないでください(Core は Manual 同期、この部品は同期なしのため)。
+`SubtractSpeed` / `AddSpeed` を対で送る送り手と同じ部品を共有すると、Core が外れたときの `ResetSpeed` でその分も消えるので、送り手ごとに分けて置いてください。
+
+### 設定項目
+
+- **Default Ratio**: 元の速度(既定 1)。`ResetSpeed` でこの倍率に戻します。最初もこの倍率から始まります
+- **Set Ratio**: `SetSpeed` でこの倍率にします(既定 0.5)
+- **Step Ratio**: `AddSpeed` / `SubtractSpeed` で増やす・減らす量(既定 0.25)
+- **Min Ratio / Max Ratio**: 掛ける倍率の範囲(既定 0〜1)
+- **Movement Lock Prefab**: シーンに `PlayerMovementLock` が無いときに作る Prefab。シーンに置いてあれば空で構いません
+- **Core / Channel**: 上の「RestraintCore とつなぐ」用。空なら Core には反応しません
+
+### 注意
+
+- GameObject は有効のままにしてください。無効の間に届いたイベントは捨てられます(無効にした時点で制限を外し、有効に戻したら今の倍率で掛け直します)
+- リスポーンでは倍率を変えません。`PlayerMovementLock` がリスポーンで外した分は、次のフレームで掛け直します。リスポーンで戻したいときは、送り手から `ResetSpeed` を呼んでください

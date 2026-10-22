@@ -13,6 +13,7 @@ RestraintCore (Runtime/Core)      … 基幹。装着状態(プレイヤー/ボ�
 └ CocoonSpinStation               … 引き寄せの到達で VRCStation に座らせる
 
 PlayerMovementLock                … (Core と独立)複数ギミックからの減速・ジャンプ・重力の制限を重ねて掛け、元に戻す共有部品
+└ PlayerSpeedLimiter              … イベントで自分の移動速度を設定・増減・リセットする(PlayerMovementLock 経由)
 ```
 
 FukuroUdon は必須ではありません。装着のトリガーは `ActiveRelayToUdonBehaviour` などから `RestraintCore` の
@@ -37,6 +38,14 @@ FukuroUdon は必須ではありません。装着のトリガーは `ActiveRela
 ## PlayerMovementLock
 
 ローカルプレイヤーの移動速度・ジャンプ・重力を、複数のギミックから重ねて絞るための共有部品(1 ワールドに 1 つ)。各ギミックは自分を holder として `Hold(holder, move, jump, gravity)` / `Release(holder)` を呼ぶだけで、元の値の保存と復元はこの部品が受け持ちます。項目ごとに一番強い制限(最小値)を使うので掛けた順に依存せず、最後の holder が外れると、この部品が入れた値のままの項目だけ元に戻します。リスポーンで全部外れます。ギミックの Prefab からは `PlayerMovementLock.Resolve(cached, prefab)` で名前検索・無ければ Prefab から生成して使えます。詳細は `Runtime/PlayerMovementLock/readme.md`。
+
+## PlayerSpeedLimiter
+
+`PlayerMovementLock` をスクリプト無しで使うための部品です。`SetSpeed`(決めた倍率にする)/ `AddSpeed`・`SubtractSpeed`(決めた量だけ増減)/ `ResetSpeed`(元の速度に戻す)を `SendCustomEvent` で受け、ローカルプレイヤーの移動速度を「元の速度の何倍か」で変えます(0 で移動できない、0.5 で半分)。増減は範囲の外に出た分も覚えるので、`SubtractSpeed` と `AddSpeed` を対で呼べば何回重なっても元に戻ります(対で送る送り手がいくつあっても 1 つで済む)。`Core` を設定して Core の `receivers` に入れると、自分が装着されたら `SetSpeed`、外れたら `ResetSpeed` します。詳細は `Runtime/PlayerMovementLock/readme.md`。
+
+## 0.4.0 の変更点
+
+- `PlayerSpeedLimiter` を新設。移動速度をイベントで設定・増減・リセットする汎用部品
 
 ## 0.3.0 の変更点
 
