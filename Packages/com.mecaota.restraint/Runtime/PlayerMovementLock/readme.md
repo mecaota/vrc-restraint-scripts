@@ -59,37 +59,54 @@ if (Lock() != null) movementLock.Release(this);
 
 - **Fallback Gravity**: 元の重力がほぼ 0(飛行中など)だったときに、解除で戻す重力(既定 1)
 
-## PlayerSpeedLimiter(イベントで掛ける減速)
+## PlayerSpeedLimiter(イベントで速度を設定・増減・リセットする)
 
-`PlayerMovementLock` をスクリプトを書かずに使うための部品です。同じフォルダの `PlayerSpeedLimiter.cs` を付けた GameObject を置き、
-ほかのギミックから `SendCustomEvent` で呼びます。元の速度の保存と復元は `PlayerMovementLock` が受け持つので、
+ローカルプレイヤーの移動速度(歩く / 走る / 横移動)を、`SendCustomEvent` で操作するための部品です。同じフォルダの `PlayerSpeedLimiter.cs` を付けた GameObject を置き、
+ほかのギミック(ボタン、トリガー、蜘蛛の巣など)からイベント名で呼びます。元の速度の保存と復元は `PlayerMovementLock` が受け持つので、
 別のギミックの減速と重なっても、解除の順番に関係なく正しく戻ります。
 
-- `Engage`: 掛けます。何か所から呼ばれても回数を数え、`Engage` が `Disengage` より多い間だけ掛けます
-- `Disengage`: `Engage` を 1 回分外します。全部外れたら元の速度に戻します
-- 速度はローカル専用なので同期しません。送り手は「自分が」捕まった / 放されたときだけ、自分のクライアントで送ってください
+速度は「元の速度の何倍か」(倍率)で扱います。1 = 元の速度、0.5 = 半分、0 = 移動できない、です。
 
-送り手はこの部品の型を知らず、イベント名だけで呼ぶので、送り手のパッケージは restraint が無くてもコンパイルできます。
+| イベント | 内容 |
+|---|---|
+| `SetSpeed` | 倍率を `Set Ratio` にする |
+| `AddSpeed` | 倍率を `Step Ratio` だけ増やす |
+| `SubtractSpeed` | 倍率を `Step Ratio` だけ減らす |
+| `ResetSpeed` | 倍率を `Default Ratio`(元の速度)に戻す |
 
-### 蜘蛛の巣(spider-shader の SurfaceContactDeformer)とつなぐ
+- どれも引数なしです。値はインスペクタで決めておきます。スクリプトから別の値で呼びたいときは、先に `setRatio` などのフィールドへ書いてから呼びます
+- 掛ける倍率は `Min Ratio`〜`Max Ratio` に収めます。ただし、増減で範囲の外に出た分も覚えています。そのため `SubtractSpeed` と `AddSpeed` を対で呼べば、何回重なっても必ず元に戻ります
+- 倍率が 1 のときは制限を外します。ほかのギミックの制限と重なったときは、一番遅いものが使われます
+- `GetRatio()` で、いま掛けている倍率(範囲に収めた後の値)を読めます
+- 速度はローカル専用なので同期しません。送り手は自分のクライアントで、自分に関係するときだけ送ってください
+- 送り手はこの部品の型を知らず、イベント名だけで呼ぶので、送り手のパッケージは restraint が無くてもコンパイルできます
 
-1. シーンに `PlayerSpeedLimiter` を 1 つ置き、`Move Ratio` を決めます(例: 1/3 なら 0.333)
-2. 各巣の `Local Stuck Receivers` にその GameObject を入れます。イベント名は既定の `Engage` / `Disengage` のままで構いません
-3. 巣ごとに倍率を変えたいときは、倍率ごとに `PlayerSpeedLimiter` を分けて置きます(複数の巣に同時にくっついたときは、一番遅い倍率が使われます)
+### 使い方の例
 
-### 拘束中に掛ける(RestraintCore とつなぐ)
+- **ボタンで速さを変える**: 「速く」ボタンから `AddSpeed`、「遅く」ボタンから `SubtractSpeed`、「戻す」ボタンから `ResetSpeed`。`Max Ratio` を 1 より大きくすれば、元より速くもできます
+- **入っている間だけ遅くなる床**: トリガーに入ったら `SetSpeed`、出たら `ResetSpeed`
+- **蜘蛛の巣(spider-shader の SurfaceContactDeformer)**: 各巣の `Local Stuck Receivers` にこの部品を入れます。巣は自分がくっついたら `SubtractSpeed`、全部はがれたら `AddSpeed` を送ります(既定のイベント名)
+  - 何枚くっついても 1/3 にしたい(重ねて遅くしない)ときは、`Step Ratio` 0.6667・`Min Ratio` 0.3333
+  - くっついた巣が増えるほど遅くしたいときは、`Step Ratio` を小さく(例: 0.3 なら 1 枚で 0.7、2 枚で 0.4)
+  - 巣ごとに遅さを変えたいときは、遅さごとに `PlayerSpeedLimiter` を分けます
+- **拘束中は歩けなくする**: 下の「RestraintCore とつなぐ」で `Set Ratio` を 0 に
 
-`Core` に `RestraintCore` を入れ、その Core の `Receivers` にこの部品を入れると、Core に装着されているのが自分の間も掛けます(他人の装着では掛けません)。
-`Move Ratio` を 0 にすれば、拘束されている間は歩けなくなります。Core と同じ GameObject には置かないでください(Core は Manual 同期、この部品は同期なしのため)。
+### RestraintCore とつなぐ
+
+`Core` に `RestraintCore` を入れ、その Core の `Receivers` にこの部品を入れると、Core に自分が装着されたら `SetSpeed`、外れたら `ResetSpeed` します(他人の装着では動きません)。
+Core と同じ GameObject には置かないでください(Core は Manual 同期、この部品は同期なしのため)。
+同じ部品を巣など別の送り手と共有すると、Core が外れたときの `ResetSpeed` で巣の分も消えるので、送り手ごとに分けて置いてください。
 
 ### 設定項目
 
-- **Move Ratio**: 掛けている間、歩く / 走る / 横移動を元の何倍にするか(0〜1。既定 0.5)
-- **Jump Ratio**: 掛けている間、ジャンプを元の何倍にするか。負の値(既定 -1)ならジャンプには触りません
+- **Default Ratio**: 元の速度(既定 1)。`ResetSpeed` でこの倍率に戻します。最初もこの倍率から始まります
+- **Set Ratio**: `SetSpeed` でこの倍率にします(既定 0.5)
+- **Step Ratio**: `AddSpeed` / `SubtractSpeed` で増やす・減らす量(既定 0.25)
+- **Min Ratio / Max Ratio**: 掛ける倍率の範囲(既定 0〜1)
 - **Movement Lock Prefab**: シーンに `PlayerMovementLock` が無いときに作る Prefab。シーンに置いてあれば空で構いません
-- **Core / Channel**: 上の「拘束中に掛ける」用。空なら Core には反応しません
+- **Core / Channel**: 上の「RestraintCore とつなぐ」用。空なら Core には反応しません
 
 ### 注意
 
-- GameObject は有効のままにしてください。無効の間に届いたイベントは捨てられるので、無効にされた時点で外して回数を 0 に戻します
-- ローカルプレイヤーがリスポーンしたら、`Engage` の回数を 0 に戻します(`PlayerMovementLock` もリスポーンで全部外すため)
+- GameObject は有効のままにしてください。無効の間に届いたイベントは捨てられます(無効にした時点で制限を外し、有効に戻したら今の倍率で掛け直します)
+- リスポーンでは倍率を変えません。`PlayerMovementLock` がリスポーンで外した分は、次のフレームで掛け直します。リスポーンで戻したいときは、送り手から `ResetSpeed` を呼んでください(蜘蛛の巣はリスポーンで「はがれた」を送ります)

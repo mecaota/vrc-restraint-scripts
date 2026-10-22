@@ -13,7 +13,7 @@ RestraintCore (Runtime/Core)      … 基幹。装着状態(プレイヤー/ボ�
 └ CocoonSpinStation               … 引き寄せの到達で VRCStation に座らせる
 
 PlayerMovementLock                … (Core と独立)複数ギミックからの減速・ジャンプ・重力の制限を重ねて掛け、元に戻す共有部品
-└ PlayerSpeedLimiter              … イベント(または Core の装着)を受けている間、自分の移動速度を決めた倍率にする
+└ PlayerSpeedLimiter              … イベントで自分の移動速度を設定・増減・リセットする(PlayerMovementLock 経由)
 ```
 
 FukuroUdon は必須ではありません。装着のトリガーは `ActiveRelayToUdonBehaviour` などから `RestraintCore` の
@@ -41,11 +41,11 @@ FukuroUdon は必須ではありません。装着のトリガーは `ActiveRela
 
 ## PlayerSpeedLimiter
 
-`PlayerMovementLock` をスクリプト無しで使うための部品です。`Engage` / `Disengage` を `SendCustomEvent` で受けている間、ローカルプレイヤーの移動速度を `Move Ratio` 倍にします(0 で移動できない、0.5 で半分の速さ)。何か所から `Engage` されても回数を数えるので、蜘蛛の巣を何枚つないでも 1 つで済みます。`Core` を設定して Core の `receivers` に入れると、その Core に自分が装着されている間も掛けます(拘束中は動けなくする、など)。詳細は `Runtime/PlayerMovementLock/readme.md`。
+`PlayerMovementLock` をスクリプト無しで使うための部品です。`SetSpeed`(決めた倍率にする)/ `AddSpeed`・`SubtractSpeed`(決めた量だけ増減)/ `ResetSpeed`(元の速度に戻す)を `SendCustomEvent` で受け、ローカルプレイヤーの移動速度を「元の速度の何倍か」で変えます(0 で移動できない、0.5 で半分)。増減は範囲の外に出た分も覚えるので、`SubtractSpeed` と `AddSpeed` を対で呼べば何回重なっても元に戻ります(蜘蛛の巣を何枚つないでも 1 つで済む)。`Core` を設定して Core の `receivers` に入れると、自分が装着されたら `SetSpeed`、外れたら `ResetSpeed` します。詳細は `Runtime/PlayerMovementLock/readme.md`。
 
 ## 0.4.0 の変更点
 
-- `PlayerSpeedLimiter` を新設。spider-shader の蜘蛛の巣(SurfaceContactDeformer)が持っていた「くっついている間の減速」を、巣以外のギミックでも使える形でこちらへ移した。巣からは「くっついた」「全部はがれた」のイベントを受けるだけで、spider-shader は restraint に依存しない
+- `PlayerSpeedLimiter` を新設。移動速度をイベントで設定・増減・リセットする汎用部品。spider-shader の蜘蛛の巣(SurfaceContactDeformer)が持っていた「くっついている間の減速」もこれで行う(巣は「くっついた」「全部はがれた」のイベントを送るだけで、spider-shader は restraint に依存しない)
 
 ## 0.3.0 の変更点
 

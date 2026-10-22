@@ -3,56 +3,81 @@ using UnityEngine;
 using VRC.SDKBase;
 
 /// <summary>
-/// 掛けている間、ローカルプレイヤーの移動速度を moveRatio 倍にする部品(0 で移動できない、0.5 で半分の速さ)。
-/// 元の値の保存と復元は PlayerMovementLock に任せ、この部品は自分を holder として Hold / Release するだけ。
-/// ・Engage / Disengage: SendCustomEvent で呼べる入口(引数なし)。何か所から呼ばれても回数を数え、
-///   Engage が Disengage より多い間だけ掛ける(蜘蛛の巣を何枚つないでも 1 つの部品で済む)。
-/// ・OnBoneAttach / OnBoneDetach: core を設定して Core の receivers に入れると、Core に装着されているのが自分の間も掛ける
-///   (他人の装着では掛けない)。
-/// ・ローカルプレイヤーがリスポーンしたら Engage の回数を捨てる(PlayerMovementLock もリスポーンで全部外すため)。
-/// 速度はローカル専用なので同期しない。送り手は「自分が」捕まった/放されたときだけ、自分のクライアントで送ること。
+/// ローカルプレイヤーの移動速度(歩く/走る/横移動)を、イベントで設定・増減・リセットする部品。
+/// 速度は「元の速度の何倍か」(倍率)で扱う。1 = 元の速度、0.5 = 半分、0 = 移動できない。
+/// ・SetSpeed: setRatio にする / AddSpeed・SubtractSpeed: stepRatio だけ増やす・減らす / ResetSpeed: defaultRatio に戻す。
+///   どれも引数なしなので SendCustomEvent で呼べる(値はインスペクタで、またはスクリプトから先に入れておく)。
+/// ・増減は範囲(minRatio〜maxRatio)の外に出た分も覚えておき、掛けるときだけ範囲に収める。
+///   SubtractSpeed と AddSpeed を対で呼べば、何回重なっても必ず元に戻る(蜘蛛の巣を何枚つないでも 1 つで済む)。
+/// ・元の値の保存と復元は PlayerMovementLock に任せ、この部品は自分を holder として Hold / Release するだけ。
+///   倍率が 1 のときは Release する。ほかのギミックの制限と重なったときは、一番遅いものが使われる。
+/// ・core を設定して Core の receivers に入れると、Core に自分が装着されたら SetSpeed、外れたら ResetSpeed する(他人の装着では動かない)。
+/// ・リスポーンでは倍率を変えない(PlayerMovementLock がリスポーンで外した分は、次のフレームで掛け直す)。
+/// 速度はローカル専用なので同期しない。送り手は自分のクライアントで、自分に関係するときだけ送ること。
 /// </summary>
 [UdonBehaviourSyncMode(BehaviourSyncMode.None)]
 public class PlayerSpeedLimiter : UdonSharpBehaviour
 {
-    [Header("倍率")]
-    [Tooltip("掛けている間、歩く/走る/横移動を元の何倍にするか。0 で移動できない、0.5 で半分の速さ")]
-    [Range(0f, 1f)] public float moveRatio = .5f;
+    [Header("倍率(1 = 元の速度、0.5 = 半分、0 = 移動できない)")]
+    [Tooltip("元の速度。ResetSpeed でこの倍率に戻す。最初もこの倍率から始まる")]
+    public float defaultRatio = 1f;
 
-    [Tooltip("掛けている間、ジャンプを元の何倍にするか。負の値(-1)ならジャンプには触らない")]
-    public float jumpRatio = PlayerMovementLock.Free;
+    [Tooltip("SetSpeed でこの倍率にする")]
+    public float setRatio = .5f;
+
+    [Tooltip("AddSpeed / SubtractSpeed で増やす・減らす量")]
+    public float stepRatio = .25f;
+
+    [Tooltip("掛ける倍率の下限。増減で範囲の外に出た分は覚えておき、掛けるときだけこの範囲に収める")]
+    public float minRatio = 0f;
+
+    [Tooltip("掛ける倍率の上限")]
+    public float maxRatio = 1f;
 
     [Header("PlayerMovementLock")]
     [Tooltip("シーンに PlayerMovementLock が無いときに作る Prefab(PlayerMovementLock.prefab)。シーンに置いてあれば空でよい")]
     public GameObject movementLockPrefab;
 
     [Header("RestraintCore(任意)")]
-    [Tooltip("設定すると、この Core に装着されているのが自分の間も掛ける。Core の receivers にこの部品を入れる")]
+    [Tooltip("設定すると、この Core に自分が装着されたら SetSpeed、外れたら ResetSpeed する。Core の receivers にこの部品を入れる")]
     public RestraintCore core;
 
     [Tooltip("反応する装着元ID(channel)。-1 ならどの装着元にも反応する")]
     public int channel = RestraintCore.CHANNEL_ANY;
 
     private PlayerMovementLock movementLock;
-    private int engageCount;
+    private float ratio;
+    private bool started;
     private bool coreHeld;
 
-    // 有効になったら Core の状態を読み直す。最初の呼び出しでロックを作るので、Prefab を配線していない別のギミックも名前で見つけられる
-    private void OnEnable() { ResyncCore(); }
-
-    // 掛ける(SendCustomEvent 可)。外すときは Disengage を同じ回数だけ呼ぶ
-    public void Engage()
+    // 最初の呼び出しでロックを作るので、Prefab を配線していない別のギミックも名前で見つけられる
+    private void OnEnable()
     {
-        engageCount++;
+        if (!started) { started = true; ratio = defaultRatio; }
         Apply();
+        ResyncCore();
     }
 
-    // Engage を 1 回分外す(SendCustomEvent 可)。全部外れて、Core にも装着されていなければ元の速度に戻す
-    public void Disengage()
+    // 無効の間はイベントが届かないので、掛けている分を外しておく(倍率は覚えておき、有効に戻ったら掛け直す)
+    private void OnDisable()
     {
-        if (engageCount > 0) engageCount--;
-        Apply();
+        if (movementLock != null) movementLock.Release(this);
     }
+
+    // setRatio にする(SendCustomEvent 可)
+    public void SetSpeed() { ratio = setRatio; Apply(); }
+
+    // stepRatio だけ増やす(SendCustomEvent 可)
+    public void AddSpeed() { ratio += stepRatio; Apply(); }
+
+    // stepRatio だけ減らす(SendCustomEvent 可)
+    public void SubtractSpeed() { ratio -= stepRatio; Apply(); }
+
+    // defaultRatio に戻す(SendCustomEvent 可)。増減で覚えていた分も捨てる
+    public void ResetSpeed() { ratio = defaultRatio; Apply(); }
+
+    // いま掛けている倍率(範囲に収めた後の値)
+    public float GetRatio() { return Mathf.Clamp(ratio, minRatio, maxRatio); }
 
     public void OnBoneAttach() { ResyncCore(); }
 
@@ -61,33 +86,29 @@ public class PlayerSpeedLimiter : UdonSharpBehaviour
     public override void OnPlayerRespawn(VRCPlayerApi player)
     {
         if (!Utilities.IsValid(player) || !player.isLocal) return;
-        engageCount = 0;
-        // PlayerMovementLock のリスポーン処理とどちらが先に走るか決まらないので、Core の装着が残っていれば次のフレームで掛け直す
-        SendCustomEventDelayedFrames(nameof(_ResyncCore), 1);
+        // PlayerMovementLock はリスポーンで全部外す。どちらが先に走るか決まらないので、次のフレームで今の倍率を掛け直す
+        SendCustomEventDelayedFrames(nameof(_Reapply), 1);
     }
 
-    public void _ResyncCore() { ResyncCore(); }
+    public void _Reapply() { Apply(); }
 
-    // 無効の間に届いたイベントは捨てられ、回数が合わなくなるので、無効にされたら外して数え直す
-    private void OnDisable()
-    {
-        engageCount = 0;
-        coreHeld = false;
-        if (movementLock != null) movementLock.Release(this);
-    }
-
+    // Core に自分が装着されたら SetSpeed、外れたら ResetSpeed(変わったときだけ)
     private void ResyncCore()
     {
         VRCPlayerApi local = Networking.LocalPlayer;
-        coreHeld = core != null && Utilities.IsValid(local) && core.IsAttachedOnChannel(channel) && core.targetPlayerId == local.playerId;
-        Apply();
+        bool held = core != null && Utilities.IsValid(local) && core.IsAttachedOnChannel(channel) && core.targetPlayerId == local.playerId;
+        if (held == coreHeld) return;
+        coreHeld = held;
+        if (held) SetSpeed();
+        else ResetSpeed();
     }
 
     private void Apply()
     {
         if (Lock() == null) return;
-        if (engageCount > 0 || coreHeld) movementLock.Hold(this, Mathf.Clamp01(moveRatio), jumpRatio, PlayerMovementLock.Free);
-        else movementLock.Release(this);
+        float applied = GetRatio();
+        if (Mathf.Abs(applied - 1f) < .0001f) movementLock.Release(this);
+        else movementLock.Hold(this, Mathf.Max(applied, 0f), PlayerMovementLock.Free, PlayerMovementLock.Free);
     }
 
     private PlayerMovementLock Lock()
