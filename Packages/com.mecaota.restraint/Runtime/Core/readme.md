@@ -57,6 +57,8 @@ Gimmick/
 1. `Receivers` に登録した UdonBehaviour へ `Attach Event Name` / `Detach Event Name`(既定 `OnBoneAttach` / `OnBoneDetach`)を送信
    - `Network Event Target` が `Self` のときは各クライアントでローカル送信します(推奨)。
    - `All` / `Owner` / `Others` のときはオーナーのクライアントだけがネットワーク送信します(二重配信防止)。
+     同期なし(`None`)の UdonBehaviour はネットワークイベントを受け取れず、あとから入った人にも送り直されません。
+     同梱の部品(`PlayerMovementLock` など)を受け手にするときは `Self` のままにしてください。
 2. `Notify Siblings` が ON なら、同じ GameObject 上の他の UdonBehaviour へ固定名 `OnBoneAttach` / `OnBoneDetach` を送信(配線不要)
 
 受信側は `public void OnBoneAttach()` / `public void OnBoneDetach()` を実装し、必要なら `core.targetPlayerId` / `core.targetBone` を読みます。

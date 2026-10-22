@@ -74,6 +74,7 @@ public class PlayerMovementLock : UdonSharpBehaviour
     private float ratio;
     private bool started;
     private bool coreHeld;
+    private bool retryPending;
 
     // シーン内のまとめ役を名前で探し、無ければ prefab から作る(ギミックの Prefab からシーンを参照しなくて済む)。
     public static PlayerMovementLock Resolve(PlayerMovementLock cached, GameObject prefab)
@@ -99,6 +100,7 @@ public class PlayerMovementLock : UdonSharpBehaviour
     // 無効の間はイベントが届かないので、掛けている分を外しておく(倍率は覚えておき、有効に戻ったら掛け直す)
     private void OnDisable()
     {
+        retryPending = false;
         if (hub != null) hub.Release(this);
     }
 
@@ -207,8 +209,20 @@ public class PlayerMovementLock : UdonSharpBehaviour
     private void ApplySpeed()
     {
         float applied = GetRatio();
-        if (Mathf.Abs(applied - 1f) < .0001f) Release(this);
-        else Hold(this, Mathf.Max(applied, 0f), Free, Free);
+        if (Mathf.Abs(applied - 1f) < .0001f) { Release(this); return; }
+        Hold(this, Mathf.Max(applied, 0f), Free, Free);
+        // まとめ役がまだ無い(ほかのギミックがあとで作る)ときは、見つかるまで 1 秒ごとに掛け直す
+        if (hub == null && !retryPending)
+        {
+            retryPending = true;
+            SendCustomEventDelayedSeconds(nameof(_RetrySpeed), 1f);
+        }
+    }
+
+    public void _RetrySpeed()
+    {
+        retryPending = false;
+        if (gameObject.activeInHierarchy) ApplySpeed();
     }
 
     // Core に自分が装着されたら SetSpeed、外れたら ResetSpeed(変わったときだけ)

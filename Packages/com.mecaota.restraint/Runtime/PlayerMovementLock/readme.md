@@ -99,7 +99,7 @@ if (Lock() != null) movementLock.Release(this);
 ### RestraintCore とつなぐ
 
 窓口の `Core` に `RestraintCore` を入れ、その Core の `Receivers` に窓口を入れると、Core に自分が装着されたら `SetSpeed`、外れたら `ResetSpeed` します(他人の装着では動きません)。
-Core と同じ GameObject には置かないでください(Core は Manual 同期、この部品は同期なしのため)。
+Core と同じ GameObject には置かないでください(Core は Manual 同期、この部品は同期なしのため)。同じ理由で、Core の `Network Event Target` は `Self` のままにしてください(同期なしの部品はネットワークイベントを受け取れません)。
 `SubtractSpeed` / `AddSpeed` を対で送る送り手と同じ窓口を共有すると、Core が外れたときの `ResetSpeed` でその分も消えるので、送り手ごとに窓口を分けて置いてください。
 
 ## 設定項目
@@ -125,3 +125,4 @@ Core と同じ GameObject には置かないでください(Core は Manual 同�
 - 窓口の GameObject は有効のままにしてください。無効の間に届いたイベントは捨てられます(無効にした時点で制限を外し、有効に戻したら今の倍率で掛け直します)
 - リスポーンでは倍率を変えません。まとめ役がリスポーンで外した分は、次のフレームで掛け直します。リスポーンで戻したいときは、送り手から `ResetSpeed` を呼んでください
 - 窓口のオブジェクト名を `PlayerMovementLock` にすると、まとめ役として扱われます
+- まとめ役がまだ無い(ほかのギミックがあとで作る)ときは、見つかるまで 1 秒ごとに掛け直します
