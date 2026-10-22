@@ -4,11 +4,21 @@ using UnityEngine;
 using VRC.SDKBase;
 using VRC.Udon;
 
+/// <summary>
+/// 自位置から targetObject へたわんだ糸(LineRenderer)を毎フレーム描く。
+/// core を設定すると、その RestraintCore が装着中のときだけ描画する(未装着時は LineRenderer を無効化)。
+/// </summary>
+[UdonBehaviourSyncMode(BehaviourSyncMode.None)]
 [RequireComponent(typeof(LineRenderer))]
-[UdonBehaviourSyncMode(BehaviourSyncMode.Manual)]
 public class StickyLine : UdonSharpBehaviour
 {
     public GameObject targetObject;
+
+    [Tooltip("設定すると、この RestraintCore が装着中のときだけ糸を描く(常時アクティブな糸を、装着中だけ見せる用)")]
+    public RestraintCore core;
+
+    [Tooltip("core の装着元ID(channel)がこの値のときだけ描く。-1 ならどの装着元でも描く")]
+    public int channel = RestraintCore.CHANNEL_ANY;
 
     [Header("糸の設定")]
     [Tooltip("ランダムオフセットの範囲（例: 0.1なら-0.1～0.1の範囲でランダムに揺らぎが入る）")]
@@ -21,6 +31,8 @@ public class StickyLine : UdonSharpBehaviour
     public float sagAmount = 0.1f;
     [Tooltip("距離1メートルあたりのベジエ曲線分割数")]
     public int segmentsPerMeter = 1;
+    [Tooltip("ON なら LineRenderer に設定した太さ(Width カーブ・倍率)をそのまま使い、lineWidth と中央を細くするカーブで上書きしない(太さが一定の糸にする用)")]
+    public bool keepRendererWidth = false;
 
     private LineRenderer lineRenderer;
     private Vector3[] randomOffsets;
@@ -36,17 +48,21 @@ public class StickyLine : UdonSharpBehaviour
         }
         
         // 線の太さのカーブを設定（中点で太く、両端で細く）
-        AnimationCurve widthCurve = new AnimationCurve();
-        widthCurve.AddKey(0f, 1f);  // 始点
-        widthCurve.AddKey(0.05f, 0.5f);  // 始点直近
-        widthCurve.AddKey(0.1f, 0.4f);
-        widthCurve.AddKey(0.5f, 0.2f);  // 中点（細くする）
-        widthCurve.AddKey(0.9f, 0.4f);
-        widthCurve.AddKey(0.95f, 0.5f);  // 終点直近
-        widthCurve.AddKey(1f, 1f);  // 終点
-        
-        lineRenderer.widthCurve = widthCurve;
-        lineRenderer.widthMultiplier = lineWidth;
+        // keepRendererWidth が ON なら LineRenderer 側の太さをそのまま使う
+        if (!keepRendererWidth)
+        {
+            AnimationCurve widthCurve = new AnimationCurve();
+            widthCurve.AddKey(0f, 1f);  // 始点
+            widthCurve.AddKey(0.05f, 0.5f);  // 始点直近
+            widthCurve.AddKey(0.1f, 0.4f);
+            widthCurve.AddKey(0.5f, 0.2f);  // 中点（細くする）
+            widthCurve.AddKey(0.9f, 0.4f);
+            widthCurve.AddKey(0.95f, 0.5f);  // 終点直近
+            widthCurve.AddKey(1f, 1f);  // 終点
+
+            lineRenderer.widthCurve = widthCurve;
+            lineRenderer.widthMultiplier = lineWidth;
+        }
 
         // lineCount数だけランダムな揺らぎを生成
         randomOffsets = new Vector3[lineCount];
@@ -62,6 +78,14 @@ public class StickyLine : UdonSharpBehaviour
 
     void Update()
     {
+        if (lineRenderer == null) return;
+        // core が無いときは表示の ON/OFF に触らない(アニメーションなどほかの仕組みで消している場合を壊さない)
+        if (core != null)
+        {
+            bool visible = core.IsAttachedOnChannel(channel);
+            if (lineRenderer.enabled != visible) { lineRenderer.enabled = visible; }
+            if (!visible) return;
+        }
         UpdateLineRenderer();
     }
 
