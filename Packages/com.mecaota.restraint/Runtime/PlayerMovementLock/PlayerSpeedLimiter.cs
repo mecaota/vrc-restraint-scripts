@@ -8,7 +8,7 @@ using VRC.SDKBase;
 /// ・SetSpeed: setRatio にする / AddSpeed・SubtractSpeed: stepRatio だけ増やす・減らす / ResetSpeed: defaultRatio に戻す。
 ///   どれも引数なしなので SendCustomEvent で呼べる(値はインスペクタで、またはスクリプトから先に入れておく)。
 /// ・増減は範囲(minRatio〜maxRatio)の外に出た分も覚えておき、掛けるときだけ範囲に収める。
-///   SubtractSpeed と AddSpeed を対で呼べば、何回重なっても必ず元に戻る(蜘蛛の巣を何枚つないでも 1 つで済む)。
+///   SubtractSpeed と AddSpeed を対で呼べば、何回重なっても必ず元に戻る(対で送る送り手がいくつあっても 1 つで済む)。
 /// ・元の値の保存と復元は PlayerMovementLock に任せ、この部品は自分を holder として Hold / Release するだけ。
 ///   倍率が 1 のときは Release する。ほかのギミックの制限と重なったときは、一番遅いものが使われる。
 /// ・core を設定して Core の receivers に入れると、Core に自分が装着されたら SetSpeed、外れたら ResetSpeed する(他人の装着では動かない)。

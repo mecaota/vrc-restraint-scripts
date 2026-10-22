@@ -41,11 +41,11 @@ FukuroUdon は必須ではありません。装着のトリガーは `ActiveRela
 
 ## PlayerSpeedLimiter
 
-`PlayerMovementLock` をスクリプト無しで使うための部品です。`SetSpeed`(決めた倍率にする)/ `AddSpeed`・`SubtractSpeed`(決めた量だけ増減)/ `ResetSpeed`(元の速度に戻す)を `SendCustomEvent` で受け、ローカルプレイヤーの移動速度を「元の速度の何倍か」で変えます(0 で移動できない、0.5 で半分)。増減は範囲の外に出た分も覚えるので、`SubtractSpeed` と `AddSpeed` を対で呼べば何回重なっても元に戻ります(蜘蛛の巣を何枚つないでも 1 つで済む)。`Core` を設定して Core の `receivers` に入れると、自分が装着されたら `SetSpeed`、外れたら `ResetSpeed` します。詳細は `Runtime/PlayerMovementLock/readme.md`。
+`PlayerMovementLock` をスクリプト無しで使うための部品です。`SetSpeed`(決めた倍率にする)/ `AddSpeed`・`SubtractSpeed`(決めた量だけ増減)/ `ResetSpeed`(元の速度に戻す)を `SendCustomEvent` で受け、ローカルプレイヤーの移動速度を「元の速度の何倍か」で変えます(0 で移動できない、0.5 で半分)。増減は範囲の外に出た分も覚えるので、`SubtractSpeed` と `AddSpeed` を対で呼べば何回重なっても元に戻ります(対で送る送り手がいくつあっても 1 つで済む)。`Core` を設定して Core の `receivers` に入れると、自分が装着されたら `SetSpeed`、外れたら `ResetSpeed` します。詳細は `Runtime/PlayerMovementLock/readme.md`。
 
 ## 0.4.0 の変更点
 
-- `PlayerSpeedLimiter` を新設。移動速度をイベントで設定・増減・リセットする汎用部品。spider-shader の蜘蛛の巣(SurfaceContactDeformer)が持っていた「くっついている間の減速」もこれで行う(巣は「くっついた」「全部はがれた」のイベントを送るだけで、spider-shader は restraint に依存しない)
+- `PlayerSpeedLimiter` を新設。移動速度をイベントで設定・増減・リセットする汎用部品
 
 ## 0.3.0 の変更点
 
