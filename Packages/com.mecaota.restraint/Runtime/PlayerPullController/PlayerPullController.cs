@@ -145,8 +145,8 @@ public class PlayerPullController : UdonSharpBehaviour
         Vector3 horiz = pullVel + moveVel;
         float keptY = _local.GetVelocity().y;
 
-        // 加速度制限で急変を抑える
-        if (!_driving) { _applied = new Vector3(horiz.x, keptY, horiz.z); _driving = true; }
+        // 加速度制限で急変を抑える。駆動の始めは今の速度から寄せる(走っている人を捕まえたときも急に止めない)
+        if (!_driving) { _applied = _local.GetVelocity(); _driving = true; }
         Vector3 desired = new Vector3(horiz.x, keptY, horiz.z);
         _applied = Vector3.MoveTowards(_applied, desired, maxAccel * Time.deltaTime);
         _applied.y = keptY;

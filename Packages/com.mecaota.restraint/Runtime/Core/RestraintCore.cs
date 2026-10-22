@@ -125,6 +125,7 @@ public class RestraintCore : UdonSharpBehaviour
 
     // ---- 実行時
     private int _appliedPlayerId = NO_PLAYER; // 最後にイベントを発火した playerId(遷移検出)
+    private int _appliedChannel; // 最後にイベントを発火した channel(同じプレイヤーの付け替えの検出)
     private VRCPlayerApi _playerCache;
     private VRCPlayerApi _localPlayer;
     private Vector3 _initialLocalPosition;
@@ -358,17 +359,19 @@ public class RestraintCore : UdonSharpBehaviour
 
     /// <summary>
     /// 同期フィールドからミラー・追従・イベントを導出する。ローカル書き込み後と逆シリアライズ後の両方から呼ぶ。
-    /// playerId の遷移だけでイベントを発火する(ボーン/オフセットの変更はイベント無しで次フレームの追従に反映)。
+    /// playerId か channel の遷移でイベントを発火する(ボーン/オフセットの変更はイベント無しで次フレームの追従に反映)。
+    /// 同じプレイヤーのまま channel だけ変わったときも、解除 → 装着の順に送り、channel で絞る受け手が状態を合わせ直せるようにする。
     /// </summary>
     private void ApplyState()
     {
         targetPlayerId = _syncPlayerId;
         targetBone = (HumanBodyBones)(int)_syncBone;
         channel = _syncChannel;
-        if (targetPlayerId == _appliedPlayerId) { return; }
+        if (targetPlayerId == _appliedPlayerId && (targetPlayerId < 0 || channel == _appliedChannel)) { return; }
 
         int previous = _appliedPlayerId;
         _appliedPlayerId = targetPlayerId;
+        _appliedChannel = channel;
         _playerCache = null;
 
         if (previous >= 0) { DispatchDetach(); }

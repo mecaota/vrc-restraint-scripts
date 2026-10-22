@@ -255,7 +255,8 @@ public class PlayerMovementLock : UdonSharpBehaviour
 
     private bool Overwritten()
     {
-        return (moveSet && !Same(local.GetWalkSpeed(), appliedWalk)) || (jumpSet && !Same(local.GetJumpImpulse(), appliedJump))
+        return (moveSet && (!Same(local.GetWalkSpeed(), appliedWalk) || !Same(local.GetRunSpeed(), appliedRun) || !Same(local.GetStrafeSpeed(), appliedStrafe)))
+            || (jumpSet && !Same(local.GetJumpImpulse(), appliedJump))
             || (gravitySet && !Same(local.GetGravityStrength(), appliedGravity));
     }
 

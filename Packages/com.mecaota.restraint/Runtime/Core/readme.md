@@ -44,7 +44,7 @@ Gimmick/
 
 スクリプトからは `Attach(int playerId)`、`AttachToBone(int playerId, HumanBodyBones bone)`、`SetTargetBone(...)`、
 `SetOffset(...)`、`IsAttached()`、`IsAttachedTo(int)`、`IsLocalPlayerAttached()`、`GetTargetPlayer()` が使えます。
-ネットワーク越しに依頼したいときは `[NetworkCallable]` の `RequestAttach(int playerId, int bone)` / `RequestDetach()` を
+ネットワーク越しに依頼したいときは `[NetworkCallable]` の `RequestAttach(int playerId, int bone, int attachChannel)` / `RequestDetach()` を
 `SendCustomNetworkEvent(NetworkEventTarget.Owner, ...)` で送ると先着順が保証されます。
 
 読み取り用に `targetPlayerId`(-1 = 未装着)と `targetBone` を公開しています。非アクティブな UdonBehaviour への

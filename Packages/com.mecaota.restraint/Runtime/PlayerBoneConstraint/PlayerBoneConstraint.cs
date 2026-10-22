@@ -72,6 +72,8 @@ public class PlayerBoneConstraint : UdonSharpBehaviour
     protected VRCPlayerApi playerCache;
     /// <summary>装着直後の最初の更新か(派生クラスはこのフレームだけ強さ 1 で合わせる)</summary>
     protected bool snapPending;
+    // UpdateConstraint の中でボーンの姿勢が取れなかったら立てる(アバター読み込み中など)。立っていれば初回のスナップを次のフレームに持ち越す
+    protected bool poseMissed;
 
     private bool _initialized = false;
     private bool _following = false;
@@ -167,8 +169,9 @@ public class PlayerBoneConstraint : UdonSharpBehaviour
         if (!_following) { return; }
         VRCPlayerApi player = ResolvePlayer();
         if (player == null) { return; }
+        poseMissed = false;
         UpdateConstraint(player);
-        snapPending = false;
+        if (!poseMissed) { snapPending = false; }
     }
 
     /// <summary>毎フレームの追従処理。派生クラスで置き換え/拡張する</summary>
@@ -182,7 +185,7 @@ public class PlayerBoneConstraint : UdonSharpBehaviour
     {
         Vector3 bonePosition;
         Quaternion boneRotation;
-        if (!RestraintCore.TryGetBonePose(targetPlayer, ResolveBone(), out bonePosition, out boneRotation)) { return; }
+        if (!RestraintCore.TryGetBonePose(targetPlayer, ResolveBone(), out bonePosition, out boneRotation)) { poseMissed = true; return; }
         float strength = snapPending ? 1f : followStrength;
 
         if (followPosition)
