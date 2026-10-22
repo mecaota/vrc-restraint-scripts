@@ -28,7 +28,7 @@ FukuroUdon は必須ではありません。装着のトリガーは `ActiveRela
 
 ## PlayerPullController
 
-蜘蛛の糸玉に捕縛されたローカルプレイヤーを`pullAnchor`へ一定速度で引き寄せます。移動操作すると引き寄せ速度が下がり、入力方向へ自分でも移動できます。`moveAllow`と`minPullSpeed`で「遅いが移動できる」（moveAllow=1,minPull=0）／「移動不可・速度が下がるだけ」（moveAllow=0,minPull>0）を切り替えます。`SetVelocity`はローカル専用なので各クライアントで自分1体だけ駆動し、他者は位置同期で見えます。捕縛判定は`cocoons`（繭の `RestraintCore`）を毎フレーム監視して`targetPlayerId==LocalPlayer`で導出するため、繭の解除に自動連動します。`exclusiveCores`（吊り下げ拘束の Core など）に自分が入っている間は駆動を止めます。引き寄せが始まっている間は`hideOnPull`に指定したオブジェクト（糸玉パーティクルなど）をオフにし、捕縛が解けると戻します（ローカルのみ）。
+`RestraintCore` に装着された(捕まった)ローカルプレイヤーを`pullAnchor`へ一定速度で引き寄せます。移動操作すると引き寄せ速度が下がり、入力方向へ自分でも移動できます。`moveAllow`と`minPullSpeed`で「遅いが移動できる」（moveAllow=1,minPull=0）／「移動不可・速度が下がるだけ」（moveAllow=0,minPull>0）を切り替えます。`SetVelocity`はローカル専用なので各クライアントで自分1体だけ駆動し、他者は位置同期で見えます。捕縛判定は`cocoons`（監視する `RestraintCore`）を毎フレーム見て`targetPlayerId==LocalPlayer`で導出するため、Core の解除に自動連動します。`exclusiveCores`（`SetVelocity` を使うほかの拘束の Core など）に自分が入っている間は駆動を止めます。捕まったら`hideOnPull`に指定したオブジェクトをオフにします（ローカルのみ。オンには戻さないので、戻すのはほかの仕組みに任せます）。
 
 ## PlayerMovementLock
 
@@ -46,7 +46,7 @@ FukuroUdon は必須ではありません。装着のトリガーは `ActiveRela
 ## 0.3.0 の変更点
 
 - `PlayerMovementLock` を新設。各ギミックが自前で速度を保存・復元していたため、減速が重なると解除の順序しだいで減速が残る問題を、共有部品への `Hold` / `Release` で解消
-- `StickyLine` に `keepRendererWidth` を追加。ON なら LineRenderer に設定した太さをそのまま使い、`lineWidth` と中央を細くするカーブで上書きしない(捕縛の蜘蛛糸と同じ太さ一定の糸にする用。吊り下げギミックで使用)
+- `StickyLine` に `keepRendererWidth` を追加。ON なら LineRenderer に設定した太さをそのまま使い、`lineWidth` と中央を細くするカーブで上書きしない(太さが一定の糸にする用)
 - `PlayerRestraintConstraint` に `dynamicOffset` を追加。外部スクリプト(揺れなど)が毎フレーム書き込む拘束位置のオフセット(ワールド座標)で、解除時に 0 へ戻る
 
 ## 0.2.0 の変更点(旧バージョンからの移行)

@@ -11,7 +11,7 @@ using VRC.SDKBase;
 /// 非アクティブ中にイベントを取りこぼしても OnEnable と毎フレームのエッジ検出で Core の状態に追いつく。
 ///
 /// 追従先ボーンは自分の targetBone(useCoreBone=OFF)か、Core が装着したボーン(useCoreBone=ON)。
-/// 1 つの Core に部位ごとの追従器を複数ぶら下げる(吊り下げギミックの各部位繭など)用途と、
+/// 1 つの Core に部位ごとの追従器を複数ぶら下げる(部位ごとに別の装飾を付けるなど)用途と、
 /// Core と同居して Core のボーンに装飾を追従させる用途の両方に使える。
 /// </summary>
 [UdonBehaviourSyncMode(BehaviourSyncMode.None)]

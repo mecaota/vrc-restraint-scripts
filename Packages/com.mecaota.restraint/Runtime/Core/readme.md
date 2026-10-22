@@ -94,7 +94,7 @@ FukuroUdon の ManualObjectSync が送る `OnAttach` / `OnDetach` とは名前�
 - 追従器(`PlayerBoneConstraint` / `PlayerRestraintConstraint` / `StickyLine`)の `Channel` に自分のギミックの値を入れると、その channel の装着だけに反応します(-1 = すべて)
 - 読み取り用に `channel`(ミラー)と `IsAttachedOnChannel(int)` を公開しています
 
-WebbedWorld では 糸玉の繭 = 1、木の吊り下げ = 2 を使い、吊り下げギミックは空いている `Hips_*` を実行時に選びます。
+例えば、引き寄せるギミック = 1、その場に留めるギミック = 2 のように、ギミックごとに番号を決めて使います。どの Core を使うかは、ギミックが空いているものを実行時に選べます。
 
 ## 同期と所有権
 

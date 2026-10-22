@@ -5,18 +5,18 @@ using VRC.SDK3.Rendering;
 using VRC.Udon.Common;
 
 /// <summary>
-/// 蜘蛛の糸玉に捕縛された（繭が張り付いた）ローカルプレイヤーを pullAnchor へ引き寄せる。
+/// RestraintCore に装着された(捕まった)ローカルプレイヤーを pullAnchor へ引き寄せる。
 /// プレイヤーが移動操作するとその入力量に応じて引き寄せ速度が下がり、入力方向へ自分でも
 /// 移動できる（値調整で「遅いが移動できる」と「移動不可・速度が下がるだけ」を切り替え可能）。
 ///
 /// 設計の要点（設計レビュー準拠）:
 /// ・SetVelocity はローカルプレイヤーにしか効かないので、各クライアントで自分1体だけ駆動する。
 ///   他人が引かれる様子は各自のクライアントが駆動し、標準の位置同期で見える（同期は不要 = SyncMode None）
-/// ・捕縛判定は繭スロット(cocoons: RestraintCore)を毎フレーム見て「自分の playerId が入っているか」で導出。
-///   退出/リセット/Respawn で繭が Detach してスロットが空くと引き寄せも自動で止まる（解除配線ゼロ）
+/// ・捕縛判定は監視する Core(cocoons: RestraintCore)を毎フレーム見て「自分の playerId が入っているか」で導出。
+///   退出/リセット/Respawn で Core が Detach して空くと引き寄せも自動で止まる（解除配線ゼロ）
 /// ・引き寄せは一定速度(pullSpeed)方式。誤差/dt 方式だと遠距離で巨大速度になり VR 酔い/ワープになる
 /// ・Y 速度は GetVelocity().y で保存して重力/ジャンプを温存。水平だけ差し替える
-/// ・木の吊り下げ拘束も SetVelocity を使うので、吊られている間は引き寄せを止める（相互排他）
+/// ・ほかの拘束(PlayerRestraintConstraint など)も SetVelocity を使うので、exclusiveCores に入っている間は引き寄せを止める（相互排他）
 ///
 /// 入力取得は InputFlyingSystem(fukuroudon) と同じ流儀。VR=GetRotation / Desktop=ScreenCamera.Rotation。
 /// </summary>
@@ -24,23 +24,23 @@ using VRC.Udon.Common;
 public class PlayerPullController : UdonSharpBehaviour
 {
     [Header("引き寄せ先")]
-    [Tooltip("引き寄せる目標（蜘蛛の糸疣付近。ボーンの子にすればアニメに追従する）")]
+    [Tooltip("引き寄せる目標（ボーンの子にすればアニメに追従する）")]
     public Transform pullAnchor;
 
     [Header("捕縛判定")]
-    [Tooltip("監視する繭(RestraintCore)。どれかに自分の playerId が入っていたら引き寄せを駆動する")]
+    [Tooltip("監視する RestraintCore。どれかに自分の playerId が入っていたら引き寄せを駆動する")]
     public RestraintCore[] cocoons;
 
-    [Tooltip("cocoons の装着元ID(channel)。この channel で装着されたものだけを繭とみなす。-1 なら全て")]
+    [Tooltip("cocoons の装着元ID(channel)。この channel で装着されたものだけを捕まったとみなす。-1 なら全て")]
     public int channel = RestraintCore.CHANNEL_ANY;
 
-    [Tooltip("吊り下げ拘束の RestraintCore（同時に SetVelocity すると競合するので、これに自分が入っている間は引き寄せを止める）")]
+    [Tooltip("ほかの拘束の RestraintCore（同時に SetVelocity すると競合するので、これに自分が入っている間は引き寄せを止める）")]
     public RestraintCore[] exclusiveCores;
 
     [Tooltip("exclusiveCores の装着元ID(channel)。-1 なら全て")]
     public int exclusiveChannel = RestraintCore.CHANNEL_ANY;
 
-    [Tooltip("引き寄せ（引っ張り上げ）が始まっている間オフにするオブジェクト。糸玉パーティクルなど。捕縛が解けると自動で戻す（ローカルのみ）")]
+    [Tooltip("捕まったらオフにするオブジェクト（ローカルのみ）。オンには戻さないので、戻すのはほかの仕組みに任せる")]
     public GameObject hideOnPull;
 
     [Header("引き寄せ")]
@@ -100,15 +100,15 @@ public class PlayerPullController : UdonSharpBehaviour
         if (_local == null || !_local.IsValid()) { return; }
         int myId = _local.playerId;
 
-        // 着弾（繭に捕縛）されたら糸玉パーティクルをオフにする。オンには戻さない
-        // （巣に乗っている間の発射オン/オフは既存の WebAreaSensor が制御するので、そちらを壊さない）
+        // 捕まったら hideOnPull をオフにする。オンには戻さない
+        // （オン/オフをほかの仕組みが制御していることがあるので、そちらを壊さない）
         bool captured = IsHeldBy(cocoons, channel, myId);
         if (hideOnPull != null && captured && hideOnPull.activeSelf) { hideOnPull.SetActive(false); }
 
-        // 吊り下げ等で拘束中なら引き寄せを止める（SetVelocity競合の回避）
+        // ほかの拘束中なら引き寄せを止める（SetVelocity競合の回避）
         if (IsHeldBy(exclusiveCores, exclusiveChannel, myId)) { _driving = false; _ramp = 0f; return; }
 
-        // 繭スロットに自分が入っているか（捕縛判定）
+        // 監視する Core に自分が入っているか（捕縛判定）
         if (!captured) { _driving = false; _ramp = 0f; return; }
         if (pullAnchor == null) { return; }
 
@@ -117,7 +117,7 @@ public class PlayerPullController : UdonSharpBehaviour
         Vector3 to = pullAnchor.position - pos;
         to.y = 0f;
         float dist = to.magnitude;
-        // 到達したら駆動停止（通常操作に復帰。繭＝拘束は残る）
+        // 到達したら駆動停止（通常操作に復帰。Core の拘束は残る）
         if (dist <= arriveDistance) { _driving = false; _ramp = 0f; return; }
         Vector3 pullDir = to / dist;
 

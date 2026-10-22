@@ -33,7 +33,7 @@ public class PlayerRestraintConstraint : UdonSharpBehaviour
     [Tooltip("拘束位置のオフセット(ワールド座標)")]
     public Vector3 positionOffset = Vector3.zero;
 
-    [Tooltip("装着直後の最初の更新でオブジェクト(アンカー)をプレイヤーのボーン位置へ動かすか。OFF ならアンカーは固定でプレイヤーをそこへ引き寄せる(吊り下げ等)。ON は「現在地で拘束を始める」用途")]
+    [Tooltip("装着直後の最初の更新でオブジェクト(アンカー)をプレイヤーのボーン位置へ動かすか。OFF ならアンカーは固定でプレイヤーをそこへ引き寄せる(決まった場所に留める用途)。ON は「現在地で拘束を始める」用途")]
     public bool snapToPlayerOnAttach = false;
 
     [Header("軸無視設定")]

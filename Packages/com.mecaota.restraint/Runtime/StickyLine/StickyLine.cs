@@ -14,7 +14,7 @@ public class StickyLine : UdonSharpBehaviour
 {
     public GameObject targetObject;
 
-    [Tooltip("設定すると、この RestraintCore が装着中のときだけ糸を描く(常時アクティブな繭の糸を隠す用)")]
+    [Tooltip("設定すると、この RestraintCore が装着中のときだけ糸を描く(常時アクティブな糸を、装着中だけ見せる用)")]
     public RestraintCore core;
 
     [Tooltip("core の装着元ID(channel)がこの値のときだけ描く。-1 ならどの装着元でも描く")]
@@ -31,7 +31,7 @@ public class StickyLine : UdonSharpBehaviour
     public float sagAmount = 0.1f;
     [Tooltip("距離1メートルあたりのベジエ曲線分割数")]
     public int segmentsPerMeter = 1;
-    [Tooltip("ON なら LineRenderer に設定した太さ(Width カーブ・倍率)をそのまま使い、lineWidth と中央を細くするカーブで上書きしない(捕縛の蜘蛛糸と同じ太さ一定の糸にする用)")]
+    [Tooltip("ON なら LineRenderer に設定した太さ(Width カーブ・倍率)をそのまま使い、lineWidth と中央を細くするカーブで上書きしない(太さが一定の糸にする用)")]
     public bool keepRendererWidth = false;
 
     private LineRenderer lineRenderer;
