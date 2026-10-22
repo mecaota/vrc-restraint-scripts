@@ -79,9 +79,13 @@ public class StickyLine : UdonSharpBehaviour
     void Update()
     {
         if (lineRenderer == null) return;
-        bool visible = core == null || core.IsAttachedOnChannel(channel);
-        if (lineRenderer.enabled != visible) { lineRenderer.enabled = visible; }
-        if (!visible) return;
+        // core が無いときは表示の ON/OFF に触らない(アニメーションなどほかの仕組みで消している場合を壊さない)
+        if (core != null)
+        {
+            bool visible = core.IsAttachedOnChannel(channel);
+            if (lineRenderer.enabled != visible) { lineRenderer.enabled = visible; }
+            if (!visible) return;
+        }
         UpdateLineRenderer();
     }
 
