@@ -39,6 +39,10 @@ FukuroUdon は必須ではありません。装着のトリガーは `ActiveRela
 
 詳細は `Runtime/PlayerMovementLock/readme.md`。
 
+## 0.4.1 の変更点
+
+- `PlayerMovementLock.prefab` の UdonBehaviour の同期方式を、スクリプトの `BehaviourSyncMode.None` に合わせて None にした(これまでは Unknown で、シーンに置くと何かが設定し直すまで未設定のままだった)。使い方は変わらない
+
 ## 0.4.0 の変更点
 
 - `PlayerMovementLock` に速度のイベント(`SetSpeed` / `AddSpeed` / `SubtractSpeed` / `ResetSpeed`)を追加。まとめ役以外の場所に置くと、イベントを受けてまとめ役に制限を頼む窓口になる。既存の `Hold` / `Release` などの使い方は変わらない
