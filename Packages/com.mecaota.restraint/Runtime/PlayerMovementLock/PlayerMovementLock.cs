@@ -164,6 +164,22 @@ public class PlayerMovementLock : UdonSharpBehaviour
         return g < .01f ? fallbackGravity : g;
     }
 
+    // いま頼まれている移動の倍率(Hold の move のうち Free を除いた最小値)。誰も掛けていなければ 1。
+    // 返すのは頼まれた値で、別のシステムが上書きした実際の速度ではない。重力は扱わない。
+    public float HeldMove()
+    {
+        if (!IsHub() && hub != null) return hub.HeldMove();
+        return HeldRatio(moves, count);
+    }
+
+    // いま頼まれているジャンプの倍率(Hold の jump のうち Free を除いた最小値)。誰も掛けていなければ 1。
+    // HeldMove と同じく、頼まれた値であって実際の値ではない。
+    public float HeldJump()
+    {
+        if (!IsHub() && hub != null) return hub.HeldJump();
+        return HeldRatio(jumps, count);
+    }
+
     // setRatio にする(SendCustomEvent 可)
     public void SetSpeed() { ratio = setRatio; ApplySpeed(); }
 
@@ -267,6 +283,27 @@ public class PlayerMovementLock : UdonSharpBehaviour
 
     private static bool Same(float current, float applied) { return Mathf.Abs(current - applied) < .001f; }
 
+    // values の先頭 count 件から、Free(負の値)を除いた最小値(一番強い制限)を返す。全部 Free か 0 件なら Free。
+    // Apply と HeldMove / HeldJump が同じ計算を使うために切り出した純粋関数。
+    public static float StrongestHold(float[] values, int count)
+    {
+        float result = Free;
+        if (values == null) return result;
+        int n = Mathf.Min(count, values.Length);
+        for (int i = 0; i < n; i++)
+        {
+            if (values[i] >= 0f) result = result < 0f ? values[i] : Mathf.Min(result, values[i]);
+        }
+        return result;
+    }
+
+    // StrongestHold と同じだが、誰も掛けていない(全部 Free か 0 件)なら 1(元のまま)を返す。
+    public static float HeldRatio(float[] values, int count)
+    {
+        float held = StrongestHold(values, count);
+        return held < 0f ? 1f : held;
+    }
+
     private bool Overwritten()
     {
         return (moveSet && (!Same(local.GetWalkSpeed(), appliedWalk) || !Same(local.GetRunSpeed(), appliedRun) || !Same(local.GetStrafeSpeed(), appliedStrafe)))
@@ -278,13 +315,7 @@ public class PlayerMovementLock : UdonSharpBehaviour
     // still what this lock put there, unless force).
     private void Apply(bool force)
     {
-        float move = -1f, jump = -1f, gravity = -1f;
-        for (int i = 0; i < count; i++)
-        {
-            if (moves[i] >= 0f) move = move < 0f ? moves[i] : Mathf.Min(move, moves[i]);
-            if (jumps[i] >= 0f) jump = jump < 0f ? jumps[i] : Mathf.Min(jump, jumps[i]);
-            if (gravities[i] >= 0f) gravity = gravity < 0f ? gravities[i] : Mathf.Min(gravity, gravities[i]);
-        }
+        float move = StrongestHold(moves, count), jump = StrongestHold(jumps, count), gravity = StrongestHold(gravities, count);
         if (move >= 0f)
         {
             appliedWalk = baseWalk * move; appliedRun = baseRun * move; appliedStrafe = baseStrafe * move;
