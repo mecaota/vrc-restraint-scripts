@@ -53,6 +53,9 @@ if (Lock() != null) movementLock.Release(this);
 - `Holds(holder)`: holder が制限を掛けているか
 - `BaseWalk()` / `BaseRun()`: 制限を掛ける前のプレイヤー本来の値(誰も掛けていなければ今の値)
 - `BaseGravity()`: 元の重力。ほぼ 0(飛行中に掛けられた)なら `fallbackGravity`
+- `HeldMove()` / `HeldJump()`: いま頼まれている移動・ジャンプの倍率です。掛かっている `Hold` の `move` / `jump` から `Free` を除いた最小値を返します。誰も掛けていないときと、全員が `Free` のときは 1 です
+  - 返すのは頼まれた倍率です。別のシステムが速度を上書きしていても、その実際の値は返しません
+  - 重力は扱いません(`Hold` の `gravity` は倍率ではなく、値そのもののため)
 
 窓口に対して呼んでも、そのまままとめ役に渡します。
 

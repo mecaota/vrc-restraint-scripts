@@ -533,6 +533,114 @@ public class RestraintCore : UdonSharpBehaviour
         return true;
     }
 
+    /// <summary>
+    /// Unity Humanoid の階層で bone の一つ上のボーンを返す(Hips の親は Hips。LastBone や範囲外も Hips)。
+    /// アバターが省略できるボーン(UpperChest・Chest・Neck・Shoulder・指・つま先・目・顎)が無いときに、
+    /// 親をたどって代わりのボーンを探すために使う。例: Neck → UpperChest → Chest → Spine → Hips。
+    /// </summary>
+    public static HumanBodyBones ParentBone(HumanBodyBones bone)
+    {
+        // enum 配列は Udon で作れないので switch で持つ。enum のまま switch せず int に直して比べる
+        switch ((int)bone)
+        {
+            case (int)HumanBodyBones.Spine: return HumanBodyBones.Hips;
+            case (int)HumanBodyBones.Chest: return HumanBodyBones.Spine;
+            case (int)HumanBodyBones.UpperChest: return HumanBodyBones.Chest;
+            case (int)HumanBodyBones.Neck: return HumanBodyBones.UpperChest;
+            case (int)HumanBodyBones.Head: return HumanBodyBones.Neck;
+            case (int)HumanBodyBones.LeftEye: return HumanBodyBones.Head;
+            case (int)HumanBodyBones.RightEye: return HumanBodyBones.Head;
+            case (int)HumanBodyBones.Jaw: return HumanBodyBones.Head;
+
+            case (int)HumanBodyBones.LeftShoulder: return HumanBodyBones.UpperChest;
+            case (int)HumanBodyBones.LeftUpperArm: return HumanBodyBones.LeftShoulder;
+            case (int)HumanBodyBones.LeftLowerArm: return HumanBodyBones.LeftUpperArm;
+            case (int)HumanBodyBones.LeftHand: return HumanBodyBones.LeftLowerArm;
+            case (int)HumanBodyBones.RightShoulder: return HumanBodyBones.UpperChest;
+            case (int)HumanBodyBones.RightUpperArm: return HumanBodyBones.RightShoulder;
+            case (int)HumanBodyBones.RightLowerArm: return HumanBodyBones.RightUpperArm;
+            case (int)HumanBodyBones.RightHand: return HumanBodyBones.RightLowerArm;
+
+            case (int)HumanBodyBones.LeftUpperLeg: return HumanBodyBones.Hips;
+            case (int)HumanBodyBones.LeftLowerLeg: return HumanBodyBones.LeftUpperLeg;
+            case (int)HumanBodyBones.LeftFoot: return HumanBodyBones.LeftLowerLeg;
+            case (int)HumanBodyBones.LeftToes: return HumanBodyBones.LeftFoot;
+            case (int)HumanBodyBones.RightUpperLeg: return HumanBodyBones.Hips;
+            case (int)HumanBodyBones.RightLowerLeg: return HumanBodyBones.RightUpperLeg;
+            case (int)HumanBodyBones.RightFoot: return HumanBodyBones.RightLowerLeg;
+            case (int)HumanBodyBones.RightToes: return HumanBodyBones.RightFoot;
+
+            case (int)HumanBodyBones.LeftThumbProximal: return HumanBodyBones.LeftHand;
+            case (int)HumanBodyBones.LeftThumbIntermediate: return HumanBodyBones.LeftThumbProximal;
+            case (int)HumanBodyBones.LeftThumbDistal: return HumanBodyBones.LeftThumbIntermediate;
+            case (int)HumanBodyBones.LeftIndexProximal: return HumanBodyBones.LeftHand;
+            case (int)HumanBodyBones.LeftIndexIntermediate: return HumanBodyBones.LeftIndexProximal;
+            case (int)HumanBodyBones.LeftIndexDistal: return HumanBodyBones.LeftIndexIntermediate;
+            case (int)HumanBodyBones.LeftMiddleProximal: return HumanBodyBones.LeftHand;
+            case (int)HumanBodyBones.LeftMiddleIntermediate: return HumanBodyBones.LeftMiddleProximal;
+            case (int)HumanBodyBones.LeftMiddleDistal: return HumanBodyBones.LeftMiddleIntermediate;
+            case (int)HumanBodyBones.LeftRingProximal: return HumanBodyBones.LeftHand;
+            case (int)HumanBodyBones.LeftRingIntermediate: return HumanBodyBones.LeftRingProximal;
+            case (int)HumanBodyBones.LeftRingDistal: return HumanBodyBones.LeftRingIntermediate;
+            case (int)HumanBodyBones.LeftLittleProximal: return HumanBodyBones.LeftHand;
+            case (int)HumanBodyBones.LeftLittleIntermediate: return HumanBodyBones.LeftLittleProximal;
+            case (int)HumanBodyBones.LeftLittleDistal: return HumanBodyBones.LeftLittleIntermediate;
+
+            case (int)HumanBodyBones.RightThumbProximal: return HumanBodyBones.RightHand;
+            case (int)HumanBodyBones.RightThumbIntermediate: return HumanBodyBones.RightThumbProximal;
+            case (int)HumanBodyBones.RightThumbDistal: return HumanBodyBones.RightThumbIntermediate;
+            case (int)HumanBodyBones.RightIndexProximal: return HumanBodyBones.RightHand;
+            case (int)HumanBodyBones.RightIndexIntermediate: return HumanBodyBones.RightIndexProximal;
+            case (int)HumanBodyBones.RightIndexDistal: return HumanBodyBones.RightIndexIntermediate;
+            case (int)HumanBodyBones.RightMiddleProximal: return HumanBodyBones.RightHand;
+            case (int)HumanBodyBones.RightMiddleIntermediate: return HumanBodyBones.RightMiddleProximal;
+            case (int)HumanBodyBones.RightMiddleDistal: return HumanBodyBones.RightMiddleIntermediate;
+            case (int)HumanBodyBones.RightRingProximal: return HumanBodyBones.RightHand;
+            case (int)HumanBodyBones.RightRingIntermediate: return HumanBodyBones.RightRingProximal;
+            case (int)HumanBodyBones.RightRingDistal: return HumanBodyBones.RightRingIntermediate;
+            case (int)HumanBodyBones.RightLittleProximal: return HumanBodyBones.RightHand;
+            case (int)HumanBodyBones.RightLittleIntermediate: return HumanBodyBones.RightLittleProximal;
+            case (int)HumanBodyBones.RightLittleDistal: return HumanBodyBones.RightLittleIntermediate;
+
+            // Hips(終点)、LastBone、範囲外
+            default: return HumanBodyBones.Hips;
+        }
+    }
+
+    /// <summary>
+    /// bone の位置・回転を取得する。アバターに無ければ ParentBone で親へさかのぼり、最初に取れたボーンを resolvedBone に返す。
+    /// Hips でも取れない(プレイヤーが無効、アバターの読み込み中など)ときは false を返す。このとき resolvedBone は bone のままで、
+    /// position / rotation は TryGetBonePose が失敗したときと同じ値(Vector3.zero / Quaternion.identity)になる。
+    /// ・オフセットは resolvedBone の座標系を基準に掛かる。オフセットを記録する側も掛ける側も、bone ではなく resolvedBone を使うこと。
+    /// ・どのボーンに解決されるかはクライアントごとに違うことがある(アバターの非表示や読み込みの差など)。
+    ///   全員でそろえたいときは、装着する側で解決したボーンを同期すること。
+    /// ・bone が LastBone や範囲外の値なら、GetBonePosition に渡さず Hips から取る(失敗時の resolvedBone は bone のまま)。
+    /// </summary>
+    public static bool TryGetBonePoseOrParent(VRCPlayerApi player, HumanBodyBones bone, out Vector3 position, out Quaternion rotation, out HumanBodyBones resolvedBone)
+    {
+        position = Vector3.zero;
+        rotation = Quaternion.identity;
+        resolvedBone = bone;
+        if (player == null || !player.IsValid()) { return false; }
+        // LastBone や範囲外の値は GetBonePosition で例外になりうるので、Hips から始める
+        int index = (int)bone;
+        HumanBodyBones current = index >= 0 && index < (int)HumanBodyBones.LastBone ? bone : HumanBodyBones.Hips;
+        // いちばん深い指先でも Hips まで 11 個なので、12 回で必ず止まる
+        for (int i = 0; i < 12; i++)
+        {
+            if (TryGetBonePose(player, current, out position, out rotation))
+            {
+                resolvedBone = current;
+                return true;
+            }
+            if (current == HumanBodyBones.Hips) { break; }
+            current = ParentBone(current);
+        }
+        position = Vector3.zero;
+        rotation = Quaternion.identity;
+        return false;
+    }
+
     /// <summary>アバターの目線の高さを基準にした倍率(referenceEyeHeight のとき 1)</summary>
     public static float GetAvatarHeightScale(VRCPlayerApi player, float referenceEyeHeight)
     {

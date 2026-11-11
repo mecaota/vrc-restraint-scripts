@@ -104,6 +104,52 @@ FukuroUdon の ManualObjectSync が送る `OnAttach` / `OnDetach` とは名前�
 - 対象プレイヤーが退室したら全クライアントでローカルに解除し、オーナーが同期状態を掃除します。オーナー自身が退室した場合は新オーナーが再送します。
 - 同時に 2 人が装着した場合は後着が勝ち、負けた側は `OnBoneDetach` → `OnBoneAttach` の順で収束します。
 
+## ボーンを読む static ヘルパ
+
+追従器やほかのギミックからも使えるように、ボーンを読む関数を `public static` で公開しています。
+
+| 関数 | 内容 |
+|---|---|
+| `TryGetBonePose(player, bone, out position, out rotation)` | ボーンの位置・回転を取得します。アバターに無いボーンや、読み込み中なら false |
+| `TryGetBonePoseOrParent(player, bone, out position, out rotation, out resolvedBone)` | `bone` が取れなければ親へさかのぼり、最初に取れたボーンの位置・回転を返します。どのボーンで取れたかは `resolvedBone` に入ります。Hips でも取れないときは false で、`resolvedBone` は `bone` のままです |
+| `ParentBone(bone)` | Humanoid の階層で一つ上のボーンを返します(下の表)。Hips の親は Hips です |
+| `FindClosestBone(player, point)` | 主要 19 ボーンのうち、`point` に最も近いボーンを返します |
+| `GetAvatarHeightScale(player, referenceEyeHeight)` | 目線の高さが `referenceEyeHeight` のとき 1 になる倍率 |
+
+### 省略できるボーンとさかのぼる順
+
+Humanoid のアバターは、Neck・Chest・UpperChest・Shoulder・指・つま先(Toes)・目(Eye)・顎(Jaw)を持たないことがあります。
+これらのボーンを `TryGetBonePose` で読むと false になるので、`TryGetBonePoseOrParent` で次の表の親へさかのぼって代わりのボーンを使います。
+
+| ボーン | 親 |
+|---|---|
+| Spine | Hips |
+| Chest | Spine |
+| UpperChest | Chest |
+| Neck | UpperChest |
+| Head | Neck |
+| LeftEye / RightEye / Jaw | Head |
+| LeftShoulder / RightShoulder | UpperChest |
+| UpperArm | 同じ側の Shoulder |
+| LowerArm | 同じ側の UpperArm |
+| Hand | 同じ側の LowerArm |
+| 各指の Proximal | 同じ側の Hand |
+| 各指の Intermediate | 同じ指の Proximal |
+| 各指の Distal | 同じ指の Intermediate |
+| LeftUpperLeg / RightUpperLeg | Hips |
+| LowerLeg | 同じ側の UpperLeg |
+| Foot | 同じ側の LowerLeg |
+| Toes | 同じ側の Foot |
+| Hips(と LastBone などの範囲外の値) | Hips |
+
+たとえば Neck は UpperChest → Chest → Spine → Hips の順にさかのぼり、Shoulder も UpperChest から同じ順にたどります。
+指先からでも Hips まで 10 回でたどり着くので、`TryGetBonePoseOrParent` は最大 12 回で必ず止まります。
+
+### さかのぼって取ったボーンを使うときの注意
+
+- オフセットは、取れたボーン(`resolvedBone`)の座標系を基準に掛かります。オフセットを記録する側も掛ける側も、頼んだ `bone` ではなく `resolvedBone` を使ってください。頼んだボーンの座標系のつもりで掛けると、親ボーンの向きでずれます
+- どのボーンに解決されるかは、クライアントごとに違うことがあります(アバターを非表示にしている、読み込みが終わっていないなど)。全員でそろえたいときは、装着する側で解決したボーンを同期してください
+
 ## 注意
 
 - **Core の GameObject は常時アクティブにしてください。** 非アクティブな UdonBehaviour は同期データを受け取れず、追従もしません。

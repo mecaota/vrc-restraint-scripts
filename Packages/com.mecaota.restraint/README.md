@@ -4,7 +4,8 @@
 ## 構成
 
 ```
-RestraintCore (Runtime/Core)      … 基幹。装着状態(プレイヤー/ボーン/オフセット)を同期し、装着/解除イベントを飛ばす
+RestraintCore (Runtime/Core)      … 基幹。装着状態(プレイヤー/ボーン/オフセット)を同期し、装着/解除イベントを飛ばす。
+                                    ボーンを読む static ヘルパ(無いボーンは親へさかのぼる)も持つ
 ├ PlayerBoneConstraint            … Core のイベントを受けてオブジェクトをボーンに追従させる追従器
 ├ PlayerRestraintConstraint       … Core の対象が自分のとき、自分をオブジェクト位置へ拘束する(SetVelocity)
 ├ StickyLine                      … 糸の描画(core を設定すると装着中だけ描く)
@@ -20,7 +21,7 @@ FukuroUdon は必須ではありません。装着のトリガーは `ActiveRela
 
 ## RestraintCore
 
-拘束ギミックの基幹コンポーネント。「どのプレイヤーの・どのボーンに・どのオフセットで装着されているか」を Manual 同期で全員に共有し、その状態から自身のボーン追従(位置/回転/身長スケール)と装着/解除イベントの発火を行います。全クライアントが同じ同期状態から動くので遅入室者にも復元され、退室・リスポーン時の掃除と所有権も Core が担います。1 Core = 1 人分の装着セッションで、装飾は `PlayerBoneConstraint` 等の追従器を `receivers` に登録(または同じ GameObject に同居)させて動かします。イベントは Inspector で指定した `UdonBehaviour[]` へ任意のイベント名(既定 `OnBoneAttach` / `OnBoneDetach`)で、また同じ GameObject 上の他の UdonBehaviour へ固定名で送られます。Core の GameObject は常時アクティブにしてください(非アクティブだと同期を受け取れません)。詳細は `Runtime/Core/readme.md`。
+拘束ギミックの基幹コンポーネント。「どのプレイヤーの・どのボーンに・どのオフセットで装着されているか」を Manual 同期で全員に共有し、その状態から自身のボーン追従(位置/回転/身長スケール)と装着/解除イベントの発火を行います。全クライアントが同じ同期状態から動くので遅入室者にも復元され、退室・リスポーン時の掃除と所有権も Core が担います。1 Core = 1 人分の装着セッションで、装飾は `PlayerBoneConstraint` 等の追従器を `receivers` に登録(または同じ GameObject に同居)させて動かします。イベントは Inspector で指定した `UdonBehaviour[]` へ任意のイベント名(既定 `OnBoneAttach` / `OnBoneDetach`)で、また同じ GameObject 上の他の UdonBehaviour へ固定名で送られます。Core の GameObject は常時アクティブにしてください(非アクティブだと同期を受け取れません)。ボーンを読む static ヘルパ(`TryGetBonePose` / `TryGetBonePoseOrParent` / `ParentBone` / `FindClosestBone`)も公開しています。`TryGetBonePoseOrParent` は、アバターに無いボーンを親へさかのぼって代わりに取ります。詳細は `Runtime/Core/readme.md`。
 
 ## PlayerBoneConstraint / PlayerRestraintConstraint
 
@@ -37,7 +38,18 @@ FukuroUdon は必須ではありません。装着のトリガーは `ActiveRela
 - **まとめ役**(1 ワールドに 1 つ、オブジェクト名が `PlayerMovementLock` のもの): 各ギミックは自分を holder として `Hold(holder, move, jump, gravity)` / `Release(holder)` を呼ぶだけで、元の値の保存と復元はまとめ役が受け持ちます。項目ごとに一番強い制限(最小値)を使うので掛けた順に依存せず、最後の holder が外れると、まとめ役が入れた値のままの項目だけ元に戻します。リスポーンで全部外れます。ギミックの Prefab からは `PlayerMovementLock.Resolve(cached, prefab)` で名前検索・無ければ Prefab から生成して使えます。
 - **窓口**(それ以外の場所に置いたもの): スクリプト無しで使うための入口です。`SetSpeed`(決めた倍率にする)/ `AddSpeed`・`SubtractSpeed`(決めた量だけ増減)/ `ResetSpeed`(元の速度に戻す)を `SendCustomEvent` で受け、ローカルプレイヤーの移動速度を「元の速度の何倍か」で変えます(0 で移動できない、0.5 で半分)。増減は範囲の外に出た分も覚えるので、`SubtractSpeed` と `AddSpeed` を対で呼べば何回重なっても元に戻ります(対で送る送り手がいくつあっても、窓口は 1 つで済む)。`Core` を設定して Core の `receivers` に入れると、自分が装着されたら `SetSpeed`、外れたら `ResetSpeed` します。
 
+いま頼まれている移動・ジャンプの倍率は `HeldMove()` / `HeldJump()` で読めます(誰も掛けていなければ 1)。頼まれた値なので、別のシステムが上書きした実際の値とは違うことがあります。
+
 詳細は `Runtime/PlayerMovementLock/readme.md`。
+
+## 0.5.0 の変更点
+
+どちらも追加だけで、既存の動きは変わらない。
+
+- `RestraintCore` に `ParentBone(bone)` と `TryGetBonePoseOrParent(player, bone, out position, out rotation, out resolvedBone)` を追加。アバターが Neck・Chest・UpperChest・Shoulder・指・つま先・目・顎を持たないとき、親のボーンへさかのぼって位置・回転を取れる。オフセットは取れたボーン(`resolvedBone`)の座標系を基準に掛かるので、記録する側も掛ける側も `resolvedBone` を使う。さかのぼる順は `Runtime/Core/readme.md`
+- `PlayerMovementLock` に `HeldMove()` / `HeldJump()` を追加。いま頼まれている移動・ジャンプの倍率(`Free` を除いた最小値、誰も掛けていなければ 1)を返す。返すのは頼まれた値で、別のシステムが上書きした実際の値ではない。重力は扱わない
+- 最小値の計算を `PlayerMovementLock.StrongestHold` / `HeldRatio` に切り出し、制限を掛け直す処理(`Apply`)と `HeldMove` / `HeldJump` が同じ計算を使うようにした。`Apply` の結果は変わらない
+- EditMode テスト(`Tests/Editor`)を追加。すべての `HumanBodyBones` が循環せずに Hips へ着くことと、最小値の計算を確かめる
 
 ## 0.4.1 の変更点
 
