@@ -231,7 +231,7 @@ public class PlayerMovementDebuffController : UdonSharpBehaviour
     // デバフの値を delta だけ増やす(負なら減らす)。本人のまとめ役で、有効なときだけ効く。
     public void _Add(int delta)
     {
-        if (!IsHub() || !gameObject.activeInHierarchy) return;
+        if (!IsHub() || !enabled || !gameObject.activeInHierarchy) return;
         int next = Mathf.Clamp(amount + Mathf.Clamp(delta, -MaxAmount, MaxAmount), 0, MaxAmount);
         if (next != amount)
         {
@@ -282,7 +282,7 @@ public class PlayerMovementDebuffController : UdonSharpBehaviour
     // 倍率と、まとめ役ならデバフの値から、自分の分の制限を掛ける。無効の間は掛けない(有効に戻ったら OnEnable で掛ける)
     private void ApplySpeed()
     {
-        if (!gameObject.activeInHierarchy) return;
+        if (!enabled || !gameObject.activeInHierarchy) return;
         float move = GetRatio(), jump = Free;
         int value = IsHub() ? amount : 0;
         int at = Mathf.Max(immobileAt, 1);
