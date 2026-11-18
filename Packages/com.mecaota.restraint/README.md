@@ -14,6 +14,8 @@ RestraintCore (Runtime/Core)      … 基幹。装着状態(プレイヤー/ボ�
 
 PlayerMovementLock                … (Core と独立)複数ギミックからの減速・ジャンプ・重力の制限を重ねて掛け、元に戻す。
                                     イベントで自分の移動速度を設定・増減・リセットする窓口にもなる
+└ MovementDebuff                  … (PlayerObject に置く)プレイヤーごとのデバフ値(0〜255)を同期し、値に応じて
+                                    PlayerMovementLock で減速・移動不可にする。もがくと減る
 ```
 
 FukuroUdon は必須ではありません。装着のトリガーは `ActiveRelayToUdonBehaviour` などから `RestraintCore` の
@@ -41,6 +43,16 @@ FukuroUdon は必須ではありません。装着のトリガーは `ActiveRela
 いま頼まれている移動・ジャンプの倍率は `HeldMove()` / `HeldJump()` で読めます(誰も掛けていなければ 1)。頼まれた値なので、別のシステムが上書きした実際の値とは違うことがあります。
 
 詳細は `Runtime/PlayerMovementLock/readme.md`。
+
+## 0.6.0 の変更点
+
+追加だけで、既存の動きは変わらない。
+
+- `MovementDebuff` を新設(`Runtime/MovementDebuff`)。PlayerObject のテンプレートに置き、プレイヤーごとの値(0〜255)を Manual 同期で持つ。値は本人の端末だけが `_Add(int)` で増減し、`_Reset()` とリスポーンで 0 に戻る
+- 値が `immobileAt`(既定 32)より小さい間は「1 − 値 ÷ `immobileAt`」倍に減速し、以上で移動とジャンプを止める。速度はシーンの `PlayerMovementLock` のまとめ役に頼む
+- もがき 1 回ごとに `recoverAmount`(既定 2)だけ減る。VR は手を速く振り返した時、デスクトップは移動キーを新しく倒した時に数える
+- `animator` を設定すると、全端末で値 ÷ 255 を float の `Amount` に入れる
+- シーンに `PlayerMovementLock.prefab`(名前 `PlayerMovementLock`)を 1 つ置くこと。無いと減速しない
 
 ## 0.5.0 の変更点
 
