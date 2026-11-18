@@ -1,11 +1,11 @@
-# PlayerMovementLock
+# PlayerMovementDebuffController
 
 ## 概要
 
-ローカルプレイヤーの移動速度(歩く/走る/横移動)・ジャンプ・重力を、複数のギミックから重ねて絞るための部品です。
+ローカルプレイヤーの移動速度(歩く/走る/横移動)・ジャンプ・重力を、複数のギミックから重ねて絞るための部品です。プレイヤーごとの移動デバフの値(0〜255)も持ちます。
 置いた場所によって、役割が 2 つに分かれます。
 
-- **まとめ役**(1 ワールドに 1 つ): オブジェクト名が `PlayerMovementLock` のもの。元の値の保存と復元を受け持ちます
+- **まとめ役**: ローカルプレイヤーの PlayerObject の複製。元の値の保存と復元と、デバフの値を受け持ちます
 - **窓口**(それ以外の場所に置いたもの): 速度のイベント(`SetSpeed` など)を受け、まとめ役に制限を頼みます
 
 各ギミックは自分を holder として `Hold` / `Release` を呼ぶだけです。元の値の保存と復元はまとめ役が受け持ちます。
@@ -13,32 +13,28 @@
 
 スクリプトを書かずに使うときは、窓口を置いて `SendCustomEvent` で速度を変えます(下の「速度のイベント」)。
 
-同期はしません(`BehaviourSyncMode.None`)。速度・ジャンプ・重力の設定はローカル専用なので、各クライアントが自分の値だけを扱います。
+同期は Manual です。同期するのはデバフの値だけで、速度・ジャンプ・重力の設定はローカル専用です(各クライアントが自分の値だけを扱います)。
 
 ## 置き方
 
-- まとめ役: シーンに `PlayerMovementLock.prefab` を置きます。オブジェクト名は `PlayerMovementLock` のままにしてください。
-- ギミックの Prefab からシーンを参照したくない場合は、ギミック側に Prefab への参照(`GameObject movementLockPrefab`)を持たせ、`PlayerMovementLock.Resolve(cached, prefab)` で取得します。名前でシーンから探し、無ければ Prefab から作ります。
-- 窓口: 好きな GameObject に `PlayerMovementLock` を付けます(オブジェクト名は `PlayerMovementLock` 以外にします)。まとめ役をシーンに置かない場合は、窓口の `Movement Lock Prefab` に `PlayerMovementLock.prefab` を入れておくと、最初に有効になったときにまとめ役を作ります。
+- まとめ役: PlayerObject(`VRCPlayerObject`)のテンプレートの**根**に、この部品を付けます。各プレイヤーに複製が作られ、ローカルプレイヤーの複製がまとめ役になります。テンプレートの根には 1 つだけ置いてください
+- ギミックからは `PlayerMovementDebuffController.Resolve(cached)` で取ります。ローカルプレイヤーの PlayerObject から探すので、シーンへの参照も Prefab も要りません。入室直後でまだ複製が無いときは null を返します
+- 窓口: 好きな GameObject に `PlayerMovementDebuffController` を付けます。まとめ役が見つかるまでは、1 秒ごとに掛け直します
 
 ```csharp
-public GameObject movementLockPrefab;
-private PlayerMovementLock movementLock;
+private PlayerMovementDebuffController controller;
 
-private PlayerMovementLock Lock()
+private PlayerMovementDebuffController Controller()
 {
-    movementLock = PlayerMovementLock.Resolve(movementLock, movementLockPrefab);
-    return movementLock;
+    controller = PlayerMovementDebuffController.Resolve(controller);
+    return controller;
 }
 
 // 捕まえた: 移動を 1/10、ジャンプを 0 に。重力はそのまま
-if (Lock() != null) movementLock.Hold(this, .1f, 0f, PlayerMovementLock.Free);
+if (Controller() != null) controller.Hold(this, .1f, 0f, PlayerMovementDebuffController.Free);
 // 放した
-if (Lock() != null) movementLock.Release(this);
+if (Controller() != null) controller.Release(this);
 ```
-
-複数のギミックが同じシーンで `Resolve` を呼んでも、作られるのは 1 つだけです(名前で見つかるため)。
-ギミックの `Start` で一度 `Lock()` を呼んでおくと、Prefab を配線していない別のギミックもまとめ役を名前で見つけられます。
 
 ## API
 
@@ -46,7 +42,7 @@ if (Lock() != null) movementLock.Release(this);
   - `move`: 歩く/走る/横移動を元の何倍にするか
   - `jump`: ジャンプを元の何倍にするか
   - `gravity`: 重力の値そのもの(倍率ではありません)
-  - `PlayerMovementLock.Free`(-1)を渡した項目には触りません
+  - `PlayerMovementDebuffController.Free`(-1)を渡した項目には触りません
   - 同じ値で毎フレーム呼んでも構いません。別のシステムに上書きされていたら掛け直します
 - `Release(holder)`: holder の制限を外します。最後の 1 つなら元の値に戻します。ただし、まとめ役が入れた値のままの項目だけです(別のシステムが途中で変えた値は残します)
 - `ReleaseAndRestore(holder)`: 上と同じですが、最後の 1 つなら無条件で元の値に戻します(移動の制御をほかの仕組みに引き渡すときなど)
@@ -56,16 +52,28 @@ if (Lock() != null) movementLock.Release(this);
 - `HeldMove()` / `HeldJump()`: いま頼まれている移動・ジャンプの倍率です。掛かっている `Hold` の `move` / `jump` から `Free` を除いた最小値を返します。誰も掛けていないときと、全員が `Free` のときは 1 です
   - 返すのは頼まれた倍率です。別のシステムが速度を上書きしていても、その実際の値は返しません
   - 重力は扱いません(`Hold` の `gravity` は倍率ではなく、値そのもののため)
+- `_Add(int)`: デバフの値を増減します(負なら減らす)。本人のまとめ役で、有効なときだけ効きます。値が変わらなくても掛け直すので、`immobileAt` を変えた後は `_Add(0)` を呼びます
+- `_Reset()`: デバフの値を 0 に戻します(`SendCustomEvent` 可)
 
-窓口に対して呼んでも、そのまままとめ役に渡します。
+窓口に対して `Hold` などを呼んでも、そのまままとめ役に渡します。`_Add` / `_Reset` は、まとめ役(PlayerObject の複製)に対して呼んでください。
 
 ## 動き
 
 - 最初の `Hold` で、その時点の歩く/走る/横移動/ジャンプ/重力を「元の値」として保存します
 - 複数の holder がいるときは、項目ごとに一番強い制限(最小値)を使います。掛けた順に依存しません
 - 最後の holder が外れたら元の値に戻します。元の重力がほぼ 0 だった場合は `fallbackGravity` に戻します(飛行中に掛けられた人が解除後も浮いたままにならないように)
-- ローカルプレイヤーがリスポーンしたら、すべての制限を外して元に戻します
+- ローカルプレイヤーがリスポーンしたら、すべての制限を外して元に戻し、デバフの値を 0 にします
 - holder は最大 16 件(`MaxHolders`)
+
+## 移動デバフ
+
+まとめ役は、プレイヤーごとのデバフの値(0〜255)を持ちます。値は本人の端末だけが書き、Manual 同期で全端末へ送ります(0.2 秒分まとめて送ります)。
+
+- 値が `Immobile At` より小さい間は、移動を「1 − 値 ÷ `Immobile At`」倍以下にします(まとめ役自身の倍率と小さい方)。`Immobile At` 以上で、移動もジャンプもできません
+- もがくと、1 回ごとに `Recover Amount` だけ減ります。VR は手を速く振り返した時、デスクトップは移動キーを新しく倒した時に数えます
+- 時間では減りません。リスポーンと `_Reset()` で 0 に戻ります
+- `Animator` を設定すると、全端末で値が変わるたびに float の `Amount` に 値 ÷ 255 を入れます
+- ほかのギミックから値を読むときは、同期変数 `amount`(int)を `GetProgramVariable("amount")` で読みます
 
 ## 速度のイベント
 
@@ -85,8 +93,8 @@ if (Lock() != null) movementLock.Release(this);
 - どれも引数なしです。値はインスペクタで決めておきます。スクリプトから別の値で呼びたいときは、先に `setRatio` などのフィールドへ書いてから呼びます
 - 掛ける倍率は `Min Ratio`〜`Max Ratio` に収めます。ただし、増減で範囲の外に出た分も覚えています。そのため `SubtractSpeed` と `AddSpeed` を対で呼べば、何回重なっても必ず元に戻ります
 - 倍率が 1 のときは制限を外します。ほかのギミックの制限と重なったときは、一番遅いものが使われます
-- `GetRatio()` で、いま掛けている倍率(範囲に収めた後の値)を読めます
-- 速度はローカル専用なので同期しません。送り手は自分のクライアントで、自分に関係するときだけ送ってください
+- `GetRatio()` で、いま掛けている倍率(範囲に収めた後の値。デバフの値は含みません)を読めます
+- 速度はローカル専用です。送り手は自分のクライアントで、自分に関係するときだけ送ってください
 - 送り手はこの部品の型を知らなくても、イベント名だけで呼べます(送り手のパッケージは restraint が無くてもコンパイルできます)
 
 ### 使い方の例
@@ -102,7 +110,7 @@ if (Lock() != null) movementLock.Release(this);
 ### RestraintCore とつなぐ
 
 窓口の `Core` に `RestraintCore` を入れ、その Core の `Receivers` に窓口を入れると、Core に自分が装着されたら `SetSpeed`、外れたら `ResetSpeed` します(他人の装着では動きません)。
-Core と同じ GameObject には置かないでください(Core は Manual 同期、この部品は同期なしのため)。同じ理由で、Core の `Network Event Target` は `Self` のままにしてください(同期なしの部品はネットワークイベントを受け取れません)。
+Core と同じ GameObject には置かないでください。Core の `Network Event Target` は `Self` のままにしてください。
 `SubtractSpeed` / `AddSpeed` を対で送る送り手と同じ窓口を共有すると、Core が外れたときの `ResetSpeed` でその分も消えるので、送り手ごとに窓口を分けて置いてください。
 
 ## 設定項目
@@ -118,14 +126,18 @@ Core と同じ GameObject には置かないでください(Core は Manual 同�
 - **Step Ratio**: `AddSpeed` / `SubtractSpeed` で増やす・減らす量(既定 0.25)
 - **Min Ratio / Max Ratio**: 掛ける倍率の範囲(既定 0〜1)
 
-### 窓口として置くとき
+### RestraintCore(任意)
 
-- **Movement Lock Prefab**: シーンにまとめ役が無いときに作る Prefab(`PlayerMovementLock.prefab`)。まとめ役がシーンにあれば空で構いません
 - **Core / Channel**: 上の「RestraintCore とつなぐ」用。空なら Core には反応しません
+
+### 移動デバフ(まとめ役だけが使う)
+
+- **Immobile At**: この値以上で移動もジャンプもできない(既定 32。1 以上に丸めます)
+- **Recover Amount**: もがき 1 回で減らす量(既定 2)
+- **Animator**: 値 ÷ 255 を float の `Amount` に入れる Animator。空なら何もしません
 
 ## 注意
 
-- 窓口の GameObject は有効のままにしてください。無効の間に届いたイベントは捨てられます(無効にした時点で制限を外し、有効に戻したら今の倍率で掛け直します)
+- GameObject は有効のままにしてください。無効の間に届いたイベントは捨てられます(無効にした時点で自分の分の制限を外し、有効に戻したら今の倍率と値で掛け直します)
 - リスポーンでは倍率を変えません。まとめ役がリスポーンで外した分は、次のフレームで掛け直します。リスポーンで戻したいときは、送り手から `ResetSpeed` を呼んでください
-- 窓口のオブジェクト名を `PlayerMovementLock` にすると、まとめ役として扱われます
-- まとめ役がまだ無い(ほかのギミックがあとで作る)ときは、見つかるまで 1 秒ごとに掛け直します
+- PlayerObject のテンプレートの `Default Ratio` などは、全員の複製に入ります。ほかの人の複製も窓口として動くので、テンプレートの倍率は 1 のままにしてください
