@@ -4,14 +4,14 @@ using VRC.SDKBase;
 using VRC.Udon.Common;
 
 /// <summary>
-/// ローカルプレイヤーの移動速度・ジャンプ・重力を複数のギミックから重ねて絞り、移動デバフの値(0〜255)も持つ部品。置いた場所で役割が 2 つに分かれる。
+/// ローカルプレイヤーの移動速度・ジャンプ・重力を複数のギミックから重ねて絞り、動きにくさ(0〜255)も持つ部品。置いた場所で役割が 2 つに分かれる。
 /// ・まとめ役: ローカルプレイヤーの PlayerObject の複製(PlayerObject のテンプレートの根に置く)。Resolve でそこから取る。
 ///   各ギミックは自分を holder として Hold / Release するだけで、元の値の保存と復元はまとめ役が受け持つ。
 ///   ・最初の Hold で、その時点の歩く/走る/横移動/ジャンプ/重力を「元の値」として保存する。
 ///   ・複数のギミックが同時に掛けたときは、項目ごとに一番強い制限(最小値)を使う。掛けた順に依存しない。
 ///   ・最後の Release で元の値に戻す。ただし、まとめ役が入れた値のままの項目だけ戻す(別のシステムが途中で変えた値は残す)。
 ///     ReleaseAndRestore は無条件で戻す(移動の制御をほかの仕組みに引き渡すときなど)。
-///   ・ローカルプレイヤーがリスポーンしたら、全部の制限を外して元に戻し、デバフの値も 0 にする。
+///   ・ローカルプレイヤーがリスポーンしたら、全部の制限を外して元に戻し、動きにくさも 0 にする。
 /// ・窓口(それ以外の場所に置いたもの): 速度のイベントを受け、自分を holder としてまとめ役に Hold する。
 ///   窓口の Hold / Release なども、そのまままとめ役に渡す。まとめ役が見つかるまでは 1 秒ごとに掛け直す。
 /// 速度のイベント(どれも引数なしなので SendCustomEvent で呼べる。値はインスペクタで、またはスクリプトから先に入れておく):
@@ -21,7 +21,7 @@ using VRC.Udon.Common;
 ///   SubtractSpeed と AddSpeed を対で呼べば、何回重なっても必ず元に戻る(対で送る送り手がいくつあっても、窓口は 1 つで済む)。
 /// ・core を設定して Core の receivers に入れると、Core に自分が装着されたら SetSpeed、外れたら ResetSpeed する(他人の装着では動かない)。
 /// ・リスポーンでは倍率を変えない(まとめ役がリスポーンで外した分は、次のフレームで掛け直す)。
-/// 移動デバフの値(まとめ役だけが持つ):
+/// 動きにくさ(まとめ役だけが持つ):
 /// ・_Add(int) で増減(負なら減らす。値が変わらなくても掛け直すので、immobileAt を変えた後は _Add(0))、_Reset() で 0。
 ///   本人の端末でだけ書き、Manual 同期で全端末へ送る(0.2 秒分まとめて送る)。
 /// ・値が immobileAt より小さい間は倍率を「1 − 値 ÷ immobileAt」以下に、immobileAt 以上で移動もジャンプもできない。
@@ -30,7 +30,7 @@ using VRC.Udon.Common;
 /// 速度はローカル専用。送り手は自分のクライアントで、自分に関係するときだけ送ること。
 /// </summary>
 [UdonBehaviourSyncMode(BehaviourSyncMode.Manual)]
-public class PlayerMovementDebuffController : UdonSharpBehaviour
+public class PlayerEncumbranceController : UdonSharpBehaviour
 {
     // Hold の項目をそのままにする値。
     public const float Free = -1f;
@@ -69,7 +69,7 @@ public class PlayerMovementDebuffController : UdonSharpBehaviour
     [Tooltip("反応する装着元ID(channel)。-1 ならどの装着元にも反応する")]
     public int channel = RestraintCore.CHANNEL_ANY;
 
-    [Header("移動デバフ(まとめ役だけが使う)")]
+    [Header("動きにくさ(まとめ役だけが使う)")]
     [Tooltip("この値以上で移動もジャンプもできない。それより下は値に比例して遅くなる(1 以上に丸める)")]
     public int immobileAt = 32;
 
@@ -88,7 +88,7 @@ public class PlayerMovementDebuffController : UdonSharpBehaviour
     private float baseWalk, baseRun, baseStrafe, baseJump, baseGravity;
     private float appliedWalk, appliedRun, appliedStrafe, appliedJump, appliedGravity;
     private bool moveSet, jumpSet, gravitySet;
-    private PlayerMovementDebuffController hub;
+    private PlayerEncumbranceController hub;
     private float ratio;
     private bool started;
     private bool coreHeld;
@@ -101,7 +101,7 @@ public class PlayerMovementDebuffController : UdonSharpBehaviour
     private int[] keySign = new int[2]; // 移動の軸ごとに倒している向き(-1 / 0 / 1)
 
     // ローカルプレイヤーの PlayerObject の複製からまとめ役を取る。まだ複製が無ければ null。
-    public static PlayerMovementDebuffController Resolve(PlayerMovementDebuffController cached)
+    public static PlayerEncumbranceController Resolve(PlayerEncumbranceController cached)
     {
         if (cached != null) return cached;
         VRCPlayerApi player = Networking.LocalPlayer;
@@ -111,13 +111,13 @@ public class PlayerMovementDebuffController : UdonSharpBehaviour
         for (int i = 0; i < objects.Length; i++)
         {
             if (objects[i] == null) continue;
-            PlayerMovementDebuffController found = objects[i].GetComponent<PlayerMovementDebuffController>();
+            PlayerEncumbranceController found = objects[i].GetComponent<PlayerEncumbranceController>();
             if (found != null) return found;
         }
         return null;
     }
 
-    // 有効になったら、倍率と(本人のまとめ役なら)デバフの値で掛け直す
+    // 有効になったら、倍率と(本人のまとめ役なら)動きにくさで掛け直す
     private void OnEnable()
     {
         if (!started) { started = true; ratio = defaultRatio; }
@@ -221,14 +221,14 @@ public class PlayerMovementDebuffController : UdonSharpBehaviour
     // defaultRatio に戻す(SendCustomEvent 可)。増減で覚えていた分も捨てる
     public void ResetSpeed() { ratio = defaultRatio; ApplySpeed(); }
 
-    // いま掛けている倍率(範囲に収めた後の値。デバフの値は含まない)
+    // いま掛けている倍率(範囲に収めた後の値。動きにくさは含まない)
     public float GetRatio() { return Mathf.Clamp(ratio, minRatio, maxRatio); }
 
     public void OnBoneAttach() { ResyncCore(); }
 
     public void OnBoneDetach() { ResyncCore(); }
 
-    // デバフの値を delta だけ増やす(負なら減らす)。本人のまとめ役で、有効なときだけ効く。
+    // 動きにくさを delta だけ増やす(負なら減らす)。本人のまとめ役で、有効なときだけ効く。
     public void _Add(int delta)
     {
         if (!IsHub() || !enabled || !gameObject.activeInHierarchy) return;
@@ -242,7 +242,7 @@ public class PlayerMovementDebuffController : UdonSharpBehaviour
         ApplySpeed();
     }
 
-    // デバフの値を 0 に戻す(SendCustomEvent 可)
+    // 動きにくさを 0 に戻す(SendCustomEvent 可)
     public void _Reset() { _Add(-MaxAmount); }
 
     public override void OnDeserialization() { ApplyAnimator(); }
@@ -279,7 +279,7 @@ public class PlayerMovementDebuffController : UdonSharpBehaviour
         return hub == this;
     }
 
-    // 倍率と、まとめ役ならデバフの値から、自分の分の制限を掛ける。無効の間は掛けない(有効に戻ったら OnEnable で掛ける)
+    // 倍率と、まとめ役なら動きにくさから、自分の分の制限を掛ける。無効の間は掛けない(有効に戻ったら OnEnable で掛ける)
     private void ApplySpeed()
     {
         if (!enabled || !gameObject.activeInHierarchy) return;

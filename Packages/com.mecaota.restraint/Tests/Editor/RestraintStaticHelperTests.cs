@@ -1,7 +1,7 @@
 using NUnit.Framework;
 using UnityEngine;
 
-// RestraintCore.ParentBone と PlayerMovementDebuffController.StrongestHold / HeldRatio の EditMode テスト。
+// RestraintCore.ParentBone と PlayerEncumbranceController.StrongestHold / HeldRatio の EditMode テスト。
 // どちらも Udon を通さない純粋な static 関数なので、エディタの C# としてそのまま呼べる。
 public class ParentBoneTests
 {
@@ -97,45 +97,45 @@ public class ParentBoneTests
     }
 }
 
-public class MovementDebuffControllerHeldTests
+public class EncumbranceControllerHeldTests
 {
-    private const float Free = PlayerMovementDebuffController.Free;
+    private const float Free = PlayerEncumbranceController.Free;
 
     [Test]
     public void EmptyIsOne()
     {
-        Assert.AreEqual(1f, PlayerMovementDebuffController.HeldRatio(new float[PlayerMovementDebuffController.MaxHolders], 0));
-        Assert.AreEqual(1f, PlayerMovementDebuffController.HeldRatio(null, 0));
-        Assert.AreEqual(Free, PlayerMovementDebuffController.StrongestHold(new float[PlayerMovementDebuffController.MaxHolders], 0));
+        Assert.AreEqual(1f, PlayerEncumbranceController.HeldRatio(new float[PlayerEncumbranceController.MaxHolders], 0));
+        Assert.AreEqual(1f, PlayerEncumbranceController.HeldRatio(null, 0));
+        Assert.AreEqual(Free, PlayerEncumbranceController.StrongestHold(new float[PlayerEncumbranceController.MaxHolders], 0));
     }
 
     [Test]
     public void FreeOnlyIsOne()
     {
         float[] values = { Free, Free, Free };
-        Assert.AreEqual(1f, PlayerMovementDebuffController.HeldRatio(values, values.Length));
-        Assert.AreEqual(Free, PlayerMovementDebuffController.StrongestHold(values, values.Length));
+        Assert.AreEqual(1f, PlayerEncumbranceController.HeldRatio(values, values.Length));
+        Assert.AreEqual(Free, PlayerEncumbranceController.StrongestHold(values, values.Length));
     }
 
     [Test]
     public void FreeMixedTakesMinimumOfValues()
     {
         float[] values = { Free, .5f, Free, .3f };
-        Assert.AreEqual(.3f, PlayerMovementDebuffController.HeldRatio(values, values.Length));
+        Assert.AreEqual(.3f, PlayerEncumbranceController.HeldRatio(values, values.Length));
     }
 
     [Test]
     public void SeveralValuesTakeMinimum()
     {
         float[] values = { .8f, .2f, .5f };
-        Assert.AreEqual(.2f, PlayerMovementDebuffController.HeldRatio(values, values.Length));
+        Assert.AreEqual(.2f, PlayerEncumbranceController.HeldRatio(values, values.Length));
     }
 
     [Test]
     public void ZeroIsAHoldNotFree()
     {
         float[] values = { .5f, 0f };
-        Assert.AreEqual(0f, PlayerMovementDebuffController.HeldRatio(values, values.Length));
+        Assert.AreEqual(0f, PlayerEncumbranceController.HeldRatio(values, values.Length));
     }
 
     // Apply と同じく、負の値はどれも Free として扱う
@@ -143,7 +143,7 @@ public class MovementDebuffControllerHeldTests
     public void AnyNegativeIsFree()
     {
         float[] values = { -.5f, .7f };
-        Assert.AreEqual(.7f, PlayerMovementDebuffController.HeldRatio(values, values.Length));
+        Assert.AreEqual(.7f, PlayerEncumbranceController.HeldRatio(values, values.Length));
     }
 
     // 配列は MaxHolders 件あり、count より後ろは見ない
@@ -151,6 +151,6 @@ public class MovementDebuffControllerHeldTests
     public void IgnoresEntriesAfterCount()
     {
         float[] values = { .5f, .1f };
-        Assert.AreEqual(.5f, PlayerMovementDebuffController.HeldRatio(values, 1));
+        Assert.AreEqual(.5f, PlayerEncumbranceController.HeldRatio(values, 1));
     }
 }

@@ -12,8 +12,8 @@ RestraintCore (Runtime/Core)      … 基幹。装着状態(プレイヤー/ボ�
 ├ MovePositionByContact           … 接触したプレイヤーの最寄りボーンへ空き Core を装着する
 └ PlayerPullController            … Core に捕まった自分を引き寄せる
 
-PlayerMovementDebuffController    … (Core と独立)複数ギミックからの減速・ジャンプ・重力の制限を重ねて掛け、元に戻す。
-                                    PlayerObject に置いた複製がまとめ役で、プレイヤーごとのデバフ値(0〜255)も同期し、
+PlayerEncumbranceController       … (Core と独立)複数ギミックからの減速・ジャンプ・重力の制限を重ねて掛け、元に戻す。
+                                    PlayerObject に置いた複製がまとめ役で、プレイヤーごとの動きにくさ(0〜255)も同期し、
                                     値に応じて減速・移動不可にする(もがくと減る)。それ以外の場所に置くと、
                                     イベントで自分の移動速度を設定・増減・リセットする窓口になる
 ```
@@ -33,26 +33,26 @@ FukuroUdon は必須ではありません。装着のトリガーは `ActiveRela
 
 `RestraintCore` に装着された(捕まった)ローカルプレイヤーを`pullAnchor`へ一定速度で引き寄せます。移動操作すると引き寄せ速度が下がり、入力方向へ自分でも移動できます。`moveAllow`と`minPullSpeed`で「遅いが移動できる」（moveAllow=1,minPull=0）／「移動不可・速度が下がるだけ」（moveAllow=0,minPull>0）を切り替えます。`SetVelocity`はローカル専用なので各クライアントで自分1体だけ駆動し、他者は位置同期で見えます。捕縛判定は`cocoons`（監視する `RestraintCore`）を毎フレーム見て`targetPlayerId==LocalPlayer`で導出するため、Core の解除に自動連動します。`exclusiveCores`（`SetVelocity` を使うほかの拘束の Core など）に自分が入っている間は駆動を止めます。捕まったら`hideOnPull`に指定したオブジェクトをオフにします（ローカルのみ。オンには戻さないので、戻すのはほかの仕組みに任せます）。
 
-## PlayerMovementDebuffController
+## PlayerEncumbranceController
 
-ローカルプレイヤーの移動速度・ジャンプ・重力を、複数のギミックから重ねて絞るための部品です。プレイヤーごとの移動デバフの値も持ちます。置いた場所で役割が 2 つに分かれます。
+ローカルプレイヤーの移動速度・ジャンプ・重力を、複数のギミックから重ねて絞るための部品です。プレイヤーごとの動きにくさも持ちます。置いた場所で役割が 2 つに分かれます。
 
-- **まとめ役**(PlayerObject のテンプレートの根に置き、ローカルプレイヤーの複製がまとめ役になる): 各ギミックは自分を holder として `Hold(holder, move, jump, gravity)` / `Release(holder)` を呼ぶだけで、元の値の保存と復元はまとめ役が受け持ちます。項目ごとに一番強い制限(最小値)を使うので掛けた順に依存せず、最後の holder が外れると、まとめ役が入れた値のままの項目だけ元に戻します。リスポーンで全部外れます。ギミックからは `PlayerMovementDebuffController.Resolve(cached)` でローカルプレイヤーの PlayerObject から取ります。
-  - デバフの値(0〜255)を Manual 同期で持ちます。本人の端末だけが `_Add(int)` で増減し、`_Reset()` とリスポーンで 0 に戻ります。値が `immobileAt`(既定 32)より小さい間は「1 − 値 ÷ `immobileAt`」倍以下に減速し、以上で移動とジャンプを止めます。もがき 1 回ごとに `recoverAmount`(既定 2)だけ減ります。`animator` を設定すると、全端末で値 ÷ 255 を float の `Amount` に入れます。
+- **まとめ役**(PlayerObject のテンプレートの根に置き、ローカルプレイヤーの複製がまとめ役になる): 各ギミックは自分を holder として `Hold(holder, move, jump, gravity)` / `Release(holder)` を呼ぶだけで、元の値の保存と復元はまとめ役が受け持ちます。項目ごとに一番強い制限(最小値)を使うので掛けた順に依存せず、最後の holder が外れると、まとめ役が入れた値のままの項目だけ元に戻します。リスポーンで全部外れます。ギミックからは `PlayerEncumbranceController.Resolve(cached)` でローカルプレイヤーの PlayerObject から取ります。
+  - 動きにくさ(0〜255)を Manual 同期で持ちます。本人の端末だけが `_Add(int)` で増減し、`_Reset()` とリスポーンで 0 に戻ります。値が `immobileAt`(既定 32)より小さい間は「1 − 値 ÷ `immobileAt`」倍以下に減速し、以上で移動とジャンプを止めます。もがき 1 回ごとに `recoverAmount`(既定 2)だけ減ります。`animator` を設定すると、全端末で値 ÷ 255 を float の `Amount` に入れます。
 - **窓口**(それ以外の場所に置いたもの): スクリプト無しで使うための入口です。`SetSpeed`(決めた倍率にする)/ `AddSpeed`・`SubtractSpeed`(決めた量だけ増減)/ `ResetSpeed`(元の速度に戻す)を `SendCustomEvent` で受け、ローカルプレイヤーの移動速度を「元の速度の何倍か」で変えます(0 で移動できない、0.5 で半分)。増減は範囲の外に出た分も覚えるので、`SubtractSpeed` と `AddSpeed` を対で呼べば何回重なっても元に戻ります(対で送る送り手がいくつあっても、窓口は 1 つで済む)。`Core` を設定して Core の `receivers` に入れると、自分が装着されたら `SetSpeed`、外れたら `ResetSpeed` します。
 
 いま頼まれている移動・ジャンプの倍率は `HeldMove()` / `HeldJump()` で読めます(誰も掛けていなければ 1)。頼まれた値なので、別のシステムが上書きした実際の値とは違うことがあります。
 
-詳細は `Runtime/PlayerMovementDebuffController/readme.md`。
+詳細は `Runtime/PlayerEncumbranceController/readme.md`。
 
 ## 0.7.0 の変更点
 
 **互換を切った。** 古い版から上げると、利用側の型名と prefab が壊れる。
 
-- `PlayerMovementLock` と `MovementDebuff` を 1 つの `PlayerMovementDebuffController`(`Runtime/PlayerMovementDebuffController`)にまとめた。スクリプトの GUID は `PlayerMovementLock` のものを引き継いだので、シーンに置いた `PlayerMovementLock` のコンポーネントはそのまま新しい型になる。`MovementDebuff` のコンポーネントは参照が切れるので、付け直すこと
+- `PlayerMovementLock` と `MovementDebuff` を 1 つの `PlayerEncumbranceController`(`Runtime/PlayerEncumbranceController`)にまとめた。スクリプトの GUID は `PlayerMovementLock` のものを引き継いだので、シーンに置いた `PlayerMovementLock` のコンポーネントはそのまま新しい型になる。`MovementDebuff` のコンポーネントは参照が切れるので、付け直すこと
 - `PlayerMovementLock.prefab` を削除した。シーンに名前 `PlayerMovementLock` のまとめ役を置く決まりをやめ、ローカルプレイヤーの PlayerObject の複製をまとめ役にした。`ObjectName` 定数と `movementLockPrefab` 欄を消し、`Resolve(cached, prefab)` を `Resolve(cached)` にした
-- 利用側のスクリプトは、型名 `PlayerMovementLock` / `MovementDebuff` を `PlayerMovementDebuffController` に、`Resolve(cached, prefab)` を `Resolve(cached)` に書き換えること。シーンの `PlayerMovementLock.prefab` のインスタンスは Missing になるので消すこと
-- 同期方式を None から Manual にした(デバフの値を同期するため)。窓口も Manual 同期になったので、Continuous 同期の部品(VRCObjectSync など)と同じ GameObject に置かないこと
+- 利用側のスクリプトは、型名 `PlayerMovementLock` / `MovementDebuff` を `PlayerEncumbranceController` に、`Resolve(cached, prefab)` を `Resolve(cached)` に書き換えること。シーンの `PlayerMovementLock.prefab` のインスタンスは Missing になるので消すこと
+- 同期方式を None から Manual にした(動きにくさを同期するため)。窓口も Manual 同期になったので、Continuous 同期の部品(VRCObjectSync など)と同じ GameObject に置かないこと
 - 移行の手順: `MovementDebuff` を付け直したら、`Immobile At` / `Recover Amount` / `Animator` を入れ直すこと。`MovementDebuff` 型の欄で参照していた利用側は、つなぎ直すこと。まとめ役は PlayerObject のテンプレートに置かないと何も効かない(以前はシーンに無ければ prefab から自動で作られた)
 - そのほかの入口(`Hold` / `Release` / `ReleaseAndRestore` / `Holds` / `Base*` / `Held*` / 速度のイベント / `_Add` / `_Reset` / `StrongestHold` / `HeldRatio` / `Free` / `MaxHolders`)と欄の名前は変えていない
 
