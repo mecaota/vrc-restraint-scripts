@@ -52,7 +52,8 @@ FukuroUdon は必須ではありません。装着のトリガーは `ActiveRela
 - `PlayerMovementLock` と `MovementDebuff` を 1 つの `PlayerMovementDebuffController`(`Runtime/PlayerMovementDebuffController`)にまとめた。スクリプトの GUID は `PlayerMovementLock` のものを引き継いだので、シーンに置いた `PlayerMovementLock` のコンポーネントはそのまま新しい型になる。`MovementDebuff` のコンポーネントは参照が切れるので、付け直すこと
 - `PlayerMovementLock.prefab` を削除した。シーンに名前 `PlayerMovementLock` のまとめ役を置く決まりをやめ、ローカルプレイヤーの PlayerObject の複製をまとめ役にした。`ObjectName` 定数と `movementLockPrefab` 欄を消し、`Resolve(cached, prefab)` を `Resolve(cached)` にした
 - 利用側のスクリプトは、型名 `PlayerMovementLock` / `MovementDebuff` を `PlayerMovementDebuffController` に、`Resolve(cached, prefab)` を `Resolve(cached)` に書き換えること。シーンの `PlayerMovementLock.prefab` のインスタンスは Missing になるので消すこと
-- 同期方式を None から Manual にした(デバフの値を同期するため)
+- 同期方式を None から Manual にした(デバフの値を同期するため)。窓口も Manual 同期になったので、Continuous 同期の部品(VRCObjectSync など)と同じ GameObject に置かないこと
+- 移行の手順: `MovementDebuff` を付け直したら、`Immobile At` / `Recover Amount` / `Animator` を入れ直すこと。`MovementDebuff` 型の欄で参照していた利用側は、つなぎ直すこと。まとめ役は PlayerObject のテンプレートに置かないと何も効かない(以前はシーンに無ければ prefab から自動で作られた)
 - そのほかの入口(`Hold` / `Release` / `ReleaseAndRestore` / `Holds` / `Base*` / `Held*` / 速度のイベント / `_Add` / `_Reset` / `StrongestHold` / `HeldRatio` / `Free` / `MaxHolders`)と欄の名前は変えていない
 
 ## 0.6.0 の変更点

@@ -231,8 +231,7 @@ public class PlayerMovementDebuffController : UdonSharpBehaviour
     // デバフの値を delta だけ増やす(負なら減らす)。本人のまとめ役で、有効なときだけ効く。
     public void _Add(int delta)
     {
-        if (!IsHub()) return;
-        if (!gameObject.activeInHierarchy) return;
+        if (!IsHub() || !gameObject.activeInHierarchy) return;
         int next = Mathf.Clamp(amount + Mathf.Clamp(delta, -MaxAmount, MaxAmount), 0, MaxAmount);
         if (next != amount)
         {
@@ -280,14 +279,15 @@ public class PlayerMovementDebuffController : UdonSharpBehaviour
         return hub == this;
     }
 
-    // 倍率と、まとめ役ならデバフの値から、自分の分の制限を掛ける
+    // 倍率と、まとめ役ならデバフの値から、自分の分の制限を掛ける。無効の間は掛けない(有効に戻ったら OnEnable で掛ける)
     private void ApplySpeed()
     {
+        if (!gameObject.activeInHierarchy) return;
         float move = GetRatio(), jump = Free;
         int value = IsHub() ? amount : 0;
         int at = Mathf.Max(immobileAt, 1);
         if (value >= at) { move = 0f; jump = 0f; }
-        else move = Mathf.Min(move, 1f - (float)value / at);
+        else if (value > 0) move = Mathf.Min(move, 1f - (float)value / at);
         if (jump == Free && Mathf.Abs(move - 1f) < .0001f) { Release(this); return; }
         Hold(this, Mathf.Max(move, 0f), jump, Free);
         // まとめ役(ローカルプレイヤーの PlayerObject の複製)がまだ無いときは、見つかるまで 1 秒ごとに掛け直す
@@ -301,7 +301,7 @@ public class PlayerMovementDebuffController : UdonSharpBehaviour
     public void _RetrySpeed()
     {
         retryPending = false;
-        if (gameObject.activeInHierarchy) ApplySpeed();
+        ApplySpeed();
     }
 
     // Core に自分が装着されたら SetSpeed、外れたら ResetSpeed(変わったときだけ)

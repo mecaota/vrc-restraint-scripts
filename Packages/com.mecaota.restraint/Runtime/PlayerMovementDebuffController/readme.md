@@ -110,7 +110,7 @@ if (Controller() != null) controller.Release(this);
 ### RestraintCore とつなぐ
 
 窓口の `Core` に `RestraintCore` を入れ、その Core の `Receivers` に窓口を入れると、Core に自分が装着されたら `SetSpeed`、外れたら `ResetSpeed` します(他人の装着では動きません)。
-Core と同じ GameObject には置かないでください。Core の `Network Event Target` は `Self` のままにしてください。
+Core の `Network Event Target` は `Self` のままにしてください。
 `SubtractSpeed` / `AddSpeed` を対で送る送り手と同じ窓口を共有すると、Core が外れたときの `ResetSpeed` でその分も消えるので、送り手ごとに窓口を分けて置いてください。
 
 ## 設定項目
@@ -138,6 +138,6 @@ Core と同じ GameObject には置かないでください。Core の `Network 
 
 ## 注意
 
-- GameObject は有効のままにしてください。無効の間に届いたイベントは捨てられます(無効にした時点で自分の分の制限を外し、有効に戻したら今の倍率と値で掛け直します)
+- GameObject は有効のままにしてください。無効の間は制限を掛けません(無効にした時点で自分の分の制限を外し、有効に戻したら今の倍率と値で掛け直します)。無効の間に変えた倍率は覚えておき、有効に戻ったときに掛けます。デバフの値は無効の間は変わりません
 - リスポーンでは倍率を変えません。まとめ役がリスポーンで外した分は、次のフレームで掛け直します。リスポーンで戻したいときは、送り手から `ResetSpeed` を呼んでください
-- PlayerObject のテンプレートの `Default Ratio` などは、全員の複製に入ります。ほかの人の複製も窓口として動くので、テンプレートの倍率は 1 のままにしてください
+- PlayerObject のテンプレートの倍率(`Default Ratio`)は 1 のまま、`Core` は空のままにしてください。テンプレートの設定は全員の複製に入り、ほかの人の複製も窓口として動くので、自分の速度を絞ってしまいます

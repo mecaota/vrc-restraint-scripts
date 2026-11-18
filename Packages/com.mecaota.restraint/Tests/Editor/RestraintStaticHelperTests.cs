@@ -97,7 +97,7 @@ public class ParentBoneTests
     }
 }
 
-public class MovementLockHeldTests
+public class MovementDebuffControllerHeldTests
 {
     private const float Free = PlayerMovementDebuffController.Free;
 
