@@ -63,6 +63,10 @@ public class MovementDebuff : UdonSharpBehaviour
 
     public override void OnDeserialization() { ApplyAnimator(); }
 
+    // 無効の間はイベントが届かないので、掛けている分を外す(値は覚えておき、有効に戻ったら掛け直す)
+    private void OnEnable() { if (amount > 0 && Mine()) ApplyLock(); }
+    private void OnDisable() { tracking = false; if (movementLock != null) movementLock.Release(this); }
+
     public override void OnPlayerRespawn(VRCPlayerApi player)
     {
         if (Utilities.IsValid(player) && player.isLocal) _Reset();
