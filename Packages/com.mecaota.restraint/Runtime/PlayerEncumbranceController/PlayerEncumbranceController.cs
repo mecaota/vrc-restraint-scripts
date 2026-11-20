@@ -23,10 +23,10 @@ using VRC.Udon.Common;
 /// ・リスポーンでは倍率を変えない(まとめ役がリスポーンで外した分は、次のフレームで掛け直す)。
 /// 動きにくさ(まとめ役だけが持つ):
 /// ・_Add(int) で増減(負なら減らす。値が変わらなくても掛け直すので、immobileAt を変えた後は _Add(0))、_Reset() で 0。
-///   本人の端末でだけ書き、Manual 同期で全端末へ送る(0.2 秒分まとめて送る)。
+///   値と immobileAt は本人の端末でだけ書き、Manual 同期で全端末へ送る(0.2 秒分まとめて送る)。
 /// ・値が immobileAt より小さい間は倍率を「1 − 値 ÷ immobileAt」以下に、immobileAt 以上で移動もジャンプもできない。
 /// ・もがくと 1 回ごとに recoverAmount だけ減る。VR は手の速い反転、デスクトップは移動キーを新しく倒した時。時間では減らない。
-/// ・animator を設定すると、全端末で値が変わるたびに float の Amount に 値 ÷ 255 を入れる。
+/// ・animator を設定すると、全端末で値が変わるたびに float の Amount に 値 ÷ 255 を、bool の Immobile に「値 ≥ immobileAt」を入れる。
 /// 速度はローカル専用。送り手は自分のクライアントで、自分に関係するときだけ送ること。
 /// </summary>
 [UdonBehaviourSyncMode(BehaviourSyncMode.Manual)]
@@ -36,6 +36,7 @@ public class PlayerEncumbranceController : UdonSharpBehaviour
     public const float Free = -1f;
     public const int MaxHolders = 16;
     private const string AmountParameter = "Amount";
+    private const string ImmobileParameter = "Immobile";
     private const int MaxAmount = 255;
     private const float SyncDelay = .2f;
     // VR のもがき: 数える手の速さ(m/s、目の高さ 1.6 m 換算)と、同じ手で数える間隔の下限(秒)
@@ -71,12 +72,12 @@ public class PlayerEncumbranceController : UdonSharpBehaviour
 
     [Header("動きにくさ(まとめ役だけが使う)")]
     [Tooltip("この値以上で移動もジャンプもできない。それより下は値に比例して遅くなる(1 以上に丸める)")]
-    public int immobileAt = 32;
+    [UdonSynced] public int immobileAt = 32;
 
     [Tooltip("もがき 1 回で減らす量")]
     public int recoverAmount = 2;
 
-    [Tooltip("値 ÷ 255 を float の Amount に入れる Animator。空なら何もしない")]
+    [Tooltip("値 ÷ 255 を float の Amount に、値 ≥ immobileAt を bool の Immobile に入れる Animator。空なら何もしない")]
     public Animator animator;
 
     [UdonSynced] private int amount;
@@ -233,7 +234,8 @@ public class PlayerEncumbranceController : UdonSharpBehaviour
     {
         if (!IsHub() || !enabled || !gameObject.activeInHierarchy) return;
         int next = Mathf.Clamp(amount + Mathf.Clamp(delta, -MaxAmount, MaxAmount), 0, MaxAmount);
-        if (next != amount)
+        // _Add(0) は immobileAt を変えた後の呼び方なので、値が同じでも送る
+        if (next != amount || delta == 0)
         {
             amount = next;
             ApplyAnimator();
@@ -323,7 +325,9 @@ public class PlayerEncumbranceController : UdonSharpBehaviour
 
     private void ApplyAnimator()
     {
-        if (animator != null) animator.SetFloat(AmountParameter, amount / (float)MaxAmount);
+        if (animator == null) return;
+        animator.SetFloat(AmountParameter, amount / (float)MaxAmount);
+        animator.SetBool(ImmobileParameter, amount >= Mathf.Max(immobileAt, 1));
     }
 
     private int IndexOf(UdonSharpBehaviour holder)
