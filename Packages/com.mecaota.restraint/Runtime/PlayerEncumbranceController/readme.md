@@ -72,7 +72,7 @@ if (Controller() != null) controller.Release(this);
 - 値が `Immobile At` より小さい間は、移動を「1 − 値 ÷ `Immobile At`」倍以下にします(まとめ役自身の倍率と小さい方)。`Immobile At` 以上で、移動もジャンプもできません
 - もがくと、1 回ごとに `Recover Amount` だけ減ります。VR は手を速く振り返した時、デスクトップは移動キーを新しく倒した時に数えます
 - 時間では減りません。リスポーンと `_Reset()` で 0 に戻ります
-- `Animator` を設定すると、全端末で値が変わるたびに float の `Amount` に 値 ÷ 255 を、bool の `Immobile` に「値 ≥ `Immobile At`」を入れます。どちらのパラメーターも Animator に用意してください
+- `Animator` を設定すると、全端末で値が変わるたびに float の `Amount` に 値 ÷ 255 を、bool の `Immobile` に「値 ≥ `Immobile At`」を入れます。どちらのパラメーターも Animator に用意してください(無いと、値が変わるたびに全端末で警告が出ます)
 - ほかのギミックから値を読むときは、同期変数 `amount`(int)を `GetProgramVariable("amount")` で読みます
 
 ## 速度のイベント

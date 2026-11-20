@@ -234,7 +234,6 @@ public class PlayerEncumbranceController : UdonSharpBehaviour
     {
         if (!IsHub() || !enabled || !gameObject.activeInHierarchy) return;
         int next = Mathf.Clamp(amount + Mathf.Clamp(delta, -MaxAmount, MaxAmount), 0, MaxAmount);
-        // _Add(0) は immobileAt を変えた後の呼び方なので、値が同じでも送る
         if (next != amount || delta == 0)
         {
             amount = next;
@@ -270,7 +269,7 @@ public class PlayerEncumbranceController : UdonSharpBehaviour
     {
         if (syncAt >= 0f && Time.time >= syncAt) { syncAt = -1f; RequestSerialization(); }
         // もがきは本人のまとめ役の VR だけで測る(デスクトップは移動キーで数える)
-        if (!IsHub() || !Ready() || !local.IsUserInVR()) { tracking = false; return; }
+        if (!IsHub() || !Ready() || !local.IsUserInVR() || recoverAmount == 0) { tracking = false; return; }
         Struggle();
     }
 
@@ -462,7 +461,7 @@ public class PlayerEncumbranceController : UdonSharpBehaviour
         int sign = value >= .5f ? 1 : value <= -.5f ? -1 : Mathf.Abs(value) < .3f ? 0 : keySign[axis];
         bool pressed = sign != 0 && sign != keySign[axis];
         keySign[axis] = sign;
-        if (!pressed || !IsHub() || !Ready() || local.IsUserInVR()) return;
+        if (!pressed || recoverAmount == 0 || !IsHub() || !Ready() || local.IsUserInVR()) return;
         _Add(-recoverAmount);
     }
 }

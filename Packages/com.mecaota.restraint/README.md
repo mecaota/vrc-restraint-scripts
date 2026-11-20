@@ -47,6 +47,8 @@ FukuroUdon は必須ではありません。装着のトリガーは `ActiveRela
 
 ## 次の版の変更点(未リリース)
 
+**互換を切った。** `animator` を設定していて、Animator に bool の `Immobile` が無いと、値が変わるたびに全端末で「Parameter 'Immobile' does not exist」の警告が出る。
+
 - `PlayerEncumbranceController` の `animator` に、bool の `Immobile`(値 ≥ `immobileAt`)も入れるようにした。`animator` を設定している場合は、Animator に bool の `Immobile` を足すこと
 - `immobileAt` を値と一緒に同期するようにした。スクリプトから変えたら `_Add(0)` を呼ぶこと
 
