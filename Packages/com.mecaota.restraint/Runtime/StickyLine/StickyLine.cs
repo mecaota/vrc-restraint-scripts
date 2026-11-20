@@ -22,8 +22,9 @@ public class StickyLine : UdonSharpBehaviour
     [Tooltip("糸の長さ 1m あたりのたわみ(m)。SpiderSilk のマテリアルでだけ効き、0 で直線")]
     public float sagAmount = 0.06f;
 
-    // シェーダーが頂点を下げてたわませるので、直線上にも分割点が要る
-    private const int Points = 9;
+    // シェーダーが頂点を下げてたわませるので、直線上にも分割点が要る。
+    // たわみの形は長さに対する割合で決まり、長さが変わっても相似なので、点の数は長さによらない
+    private const int Points = 17;
 
     private LineRenderer lineRenderer;
     private MaterialPropertyBlock block;

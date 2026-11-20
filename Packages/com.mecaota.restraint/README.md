@@ -47,6 +47,9 @@ FukuroUdon は必須ではありません。装着のトリガーは `ActiveRela
 
 ## 次の版の変更点(未リリース)
 
+- `PlayerEncumbranceController` の `animator` に、bool の `Immobile`(値 ≥ `immobileAt`)も入れるようにした。`animator` を設定している場合は、Animator に bool の `Immobile` を足すこと
+- `immobileAt` を値と一緒に同期するようにした。スクリプトから変えたら `_Add(0)` を呼ぶこと
+
 **`StickyLine` の互換を切った。**
 
 - たわみを spider-shader の `SpiderSilk` シェーダーに任せ、`randomOffsetRange` / `lineCount` / `lineWidth` / `segmentsPerMeter` / `keepRendererWidth` を消した。糸は 1 本になり、端で散らない
