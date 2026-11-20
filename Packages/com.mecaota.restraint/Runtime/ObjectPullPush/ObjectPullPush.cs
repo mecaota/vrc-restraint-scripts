@@ -126,7 +126,7 @@ namespace Mecaota.Restraint.ObjectPullPush
                 Rigidbody rb = (cachedRigidbodies != null && i < cachedRigidbodies.Length) ? cachedRigidbodies[i] : null;
                 if (rb != null)
                 {
-                    rb.AddForce(forceVec, ForceMode.VelocityChange);
+                    rb.AddForce(forceVec * rb.mass, ForceMode.Impulse);
                 }
                 else
                 {
