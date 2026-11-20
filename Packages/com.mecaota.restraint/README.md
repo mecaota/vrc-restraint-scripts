@@ -45,6 +45,16 @@ FukuroUdon は必須ではありません。装着のトリガーは `ActiveRela
 
 詳細は `Runtime/PlayerEncumbranceController/readme.md`。
 
+## 次の版の変更点(未リリース)
+
+**`StickyLine` の互換を切った。**
+
+- たわみを spider-shader の `SpiderSilk` シェーダーに任せ、`randomOffsetRange` / `lineCount` / `lineWidth` / `segmentsPerMeter` / `keepRendererWidth` を消した。糸は 1 本になり、端で散らない
+- マテリアルを `SpiderSilk` にし、`LineRenderer` の Texture Mode を `Stretch` にすること。ほかのマテリアルでは直線になり、`Tile` のままだと最初の 1m だけたわむ
+- `sagAmount` の意味を「たわみ(m)」から「長さ 1m あたりのたわみ(m)」に変えた。入れていた値は、糸の長さで割った値に入れ直すこと
+- 太さは `LineRenderer` の Width(倍率とカーブ)で決まり、Start で上書きしなくなった。以前の「両端が太く中央が細い」カーブは入らない。`keepRendererWidth` が OFF だった所は、Width を旧 `lineWidth` の値(例 0.07)に手で直すこと。直さないと幅約 1m の帯になる
+- 糸は 1 本の帯になり、`SpiderSilk` の `Elastic Motion`(既定 0.6)で揺れる。止めたい場合はマテリアルのインスペクタで 0 にする
+
 ## 0.7.0 の変更点
 
 **互換を切った。** 古い版から上げると、利用側の型名と prefab が壊れる。

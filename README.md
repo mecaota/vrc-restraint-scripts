@@ -119,17 +119,16 @@ VRC Pickupと組み合わせると、`Interact`でモードを切り替え、`Us
 
 ### StickyLine
 
-`Target Object`からこのオブジェクトへ、たわみやばらつきのある糸状の線を`LineRenderer`で描画します。
+`Target Object`からこのオブジェクトへ、糸状の線を`LineRenderer`で描画します。
 拘束したプレイヤーと拘束元をつなぐ糸などの表現に使えます。同じオブジェクトに`LineRenderer`が必要です。
+
+たわみは [spider-shader](https://github.com/mecaota/spider-shader) の`SpiderSilk`シェーダーが描きます。`LineRenderer`のマテリアルを`SpiderSilk`にし、Texture Mode を`Stretch`にしてください(ほかのマテリアルでは直線、`Tile`のままだと最初の1mだけたわみます)。
+太さは`LineRenderer`の Width(倍率とカーブ)で決まり、`StickyLine`は上書きしません。既定のままだと幅約1mの帯になるので、旧版の Line Width の値(例 0.07)を入れてください。糸は1本の帯で、マテリアルの`Elastic Motion`(既定 0.6)で揺れます。止めたいときは0にしてください。
 
 | 項目 | 説明 |
 | --- | --- |
 | Target Object | 線の始点となるオブジェクト |
-| Random Offset Range | 終点に加えるランダムなばらつきの範囲。線ごとに`Start()`時に決まります。`Line Count`が2以上、または`Sag Amount`が0のときに有効です |
-| Line Count | 線の本数 |
-| Line Width | 線の太さ（両端が太く、中央が細くなります） |
-| Sag Amount | 下方向へのたわみ量。0で直線になります |
-| Segments Per Meter | 1mあたりの曲線の分割数 |
+| Sag Amount | 糸の長さ1mあたりのたわみ(m)。0で直線になります |
 
 ## ライセンス
 
