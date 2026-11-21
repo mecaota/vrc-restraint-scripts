@@ -52,6 +52,12 @@ FukuroUdon は必須ではありません。装着のトリガーは `ActiveRela
 - `PlayerEncumbranceController` の `animator` に、bool の `Immobile`(値 ≥ `immobileAt`)も入れるようにした。`animator` を設定している場合は、Animator に bool の `Immobile` を足すこと
 - `immobileAt` を値と一緒に同期するようにした。スクリプトから変えたら `_Add(0)` を呼ぶこと
 
+## 0.7.1 の変更点
+
+- `ObjectPullPush` で Rigidbody を押す・引く `AddForce` を、`ForceMode.VelocityChange` から「力 × 質量を `ForceMode.Impulse`」に替えた。VRChat の [Unity 6 移行手順](https://vrc-beta-docs.netlify.app/sdk/upgrade/unity-6000/)の「Force and Torque Changes」は `ForceMode` を `Force` にして質量を掛けるよう示すが、これは `Acceleration` の置き換え。`VelocityChange` と同じ速度の変化を保つには「`Impulse` × 質量」が要る(「`Force` × 質量」では時間刻み倍に弱まる)ので `Impulse` にした。手順は `Impulse` に触れておらず、`Impulse` が Unity 6 の変更の外にあるというのは推測で、実機では確かめていない
+- 動きは式の上で同じ。Unity 6 の [`Rigidbody.AddForce`](https://docs.unity.com/en-us/engine/6000.0/script-reference/unityengine/rigidbody/addforce) の説明では、1 回の呼び出しあたりの速度の変化は `VelocityChange` が「力」、`Impulse` が「力 ÷ 質量」で、どちらも 1 回の呼び出しあたりでは時間刻みに依存しない。`Impulse` に「力 × 質量」を渡すと「力」になり、前と同じになる
+- この枝(`AddForce`)を通るのは、`SetTargetObjects()` で Rigidbody つきの対象を渡したときだけ。Inspector で設定した対象は Rigidbody の有無にかかわらず座標を直接動かす枝を通るので、今回の変更の影響を受けない
+
 ## 0.7.0 の変更点
 
 **互換を切った。** 古い版から上げると、利用側の型名と prefab が壊れる。
