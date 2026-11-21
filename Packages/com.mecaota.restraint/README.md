@@ -38,7 +38,7 @@ FukuroUdon は必須ではありません。装着のトリガーは `ActiveRela
 ローカルプレイヤーの移動速度・ジャンプ・重力を、複数のギミックから重ねて絞るための部品です。プレイヤーごとの動きにくさも持ちます。置いた場所で役割が 2 つに分かれます。
 
 - **まとめ役**(PlayerObject のテンプレートの根に置き、ローカルプレイヤーの複製がまとめ役になる): 各ギミックは自分を holder として `Hold(holder, move, jump, gravity)` / `Release(holder)` を呼ぶだけで、元の値の保存と復元はまとめ役が受け持ちます。項目ごとに一番強い制限(最小値)を使うので掛けた順に依存せず、最後の holder が外れると、まとめ役が入れた値のままの項目だけ元に戻します。リスポーンで全部外れます。ギミックからは `PlayerEncumbranceController.Resolve(cached)` でローカルプレイヤーの PlayerObject から取ります。
-  - 動きにくさ(0〜255)を Manual 同期で持ちます。本人の端末だけが `_Add(int)` で増減し、`_Reset()` とリスポーンで 0 に戻ります。値が `immobileAt`(既定 32)より小さい間は「1 − 値 ÷ `immobileAt`」倍以下に減速し、以上で移動とジャンプを止めます。もがき 1 回ごとに `recoverAmount`(既定 2)だけ減ります。`animator` を設定すると、全端末で値 ÷ 255 を float の `Amount` に入れます。
+  - 動きにくさ(0〜255)を Manual 同期で持ちます。本人の端末だけが `_Add(int)` で増減し、`_Reset()` とリスポーンで 0 に戻ります。値が `immobileAt`(既定 32)より小さい間は「1 − 値 ÷ `immobileAt`」倍以下に減速し、以上で移動とジャンプを止めます。もがき 1 回ごとに `recoverAmount`(既定 2)だけ減ります。`animator` を設定すると、全端末で値 ÷ 255 を float の `Amount` に、「値 ≥ `immobileAt`」を bool の `Immobile` に入れます(`immobileAt` も同期します)。
 - **窓口**(それ以外の場所に置いたもの): スクリプト無しで使うための入口です。`SetSpeed`(決めた倍率にする)/ `AddSpeed`・`SubtractSpeed`(決めた量だけ増減)/ `ResetSpeed`(元の速度に戻す)を `SendCustomEvent` で受け、ローカルプレイヤーの移動速度を「元の速度の何倍か」で変えます(0 で移動できない、0.5 で半分)。増減は範囲の外に出た分も覚えるので、`SubtractSpeed` と `AddSpeed` を対で呼べば何回重なっても元に戻ります(対で送る送り手がいくつあっても、窓口は 1 つで済む)。`Core` を設定して Core の `receivers` に入れると、自分が装着されたら `SetSpeed`、外れたら `ResetSpeed` します。
 
 いま頼まれている移動・ジャンプの倍率は `HeldMove()` / `HeldJump()` で読めます(誰も掛けていなければ 1)。頼まれた値なので、別のシステムが上書きした実際の値とは違うことがあります。
@@ -46,6 +46,8 @@ FukuroUdon は必須ではありません。装着のトリガーは `ActiveRela
 詳細は `Runtime/PlayerEncumbranceController/readme.md`。
 
 ## 次の版の変更点(未リリース)
+
+**互換を切った。** `animator` を設定していて、Animator に bool の `Immobile` が無いと、値が変わるたびに全端末で「Parameter 'Immobile' does not exist」の警告が出る。
 
 - `PlayerEncumbranceController` の `animator` に、bool の `Immobile`(値 ≥ `immobileAt`)も入れるようにした。`animator` を設定している場合は、Animator に bool の `Immobile` を足すこと
 - `immobileAt` を値と一緒に同期するようにした。スクリプトから変えたら `_Add(0)` を呼ぶこと
@@ -57,6 +59,12 @@ FukuroUdon は必須ではありません。装着のトリガーは `ActiveRela
 - `sagAmount` の意味を「たわみ(m)」から「長さ 1m あたりのたわみ(m)」に変えた。入れていた値は、糸の長さで割った値に入れ直すこと
 - 太さは `LineRenderer` の Width(倍率とカーブ)で決まり、Start で上書きしなくなった。以前の「両端が太く中央が細い」カーブは入らない。`keepRendererWidth` が OFF だった所は、Width を旧 `lineWidth` の値(例 0.07)に手で直すこと。直さないと幅約 1m の帯になる
 - 糸は 1 本の帯になり、`SpiderSilk` の `Elastic Motion`(既定 0.6)で揺れる。止めたい場合はマテリアルのインスペクタで 0 にする
+
+## 0.7.1 の変更点
+
+- `ObjectPullPush` で Rigidbody を押す・引く `AddForce` を、`ForceMode.VelocityChange` から「力 × 質量を `ForceMode.Impulse`」に替えた。VRChat の [Unity 6 移行手順](https://vrc-beta-docs.netlify.app/sdk/upgrade/unity-6000/)の「Force and Torque Changes」は `ForceMode` を `Force` にして質量を掛けるよう示すが、これは `Acceleration` の置き換え。`VelocityChange` と同じ速度の変化を保つには「`Impulse` × 質量」が要る(「`Force` × 質量」では時間刻み倍に弱まる)ので `Impulse` にした。手順は `Impulse` に触れておらず、`Impulse` が Unity 6 の変更の外にあるというのは推測で、実機では確かめていない
+- 動きは式の上で同じ。Unity 6 の [`Rigidbody.AddForce`](https://docs.unity.com/en-us/engine/6000.0/script-reference/unityengine/rigidbody/addforce) の説明では、1 回の呼び出しあたりの速度の変化は `VelocityChange` が「力」、`Impulse` が「力 ÷ 質量」で、どちらも 1 回の呼び出しあたりでは時間刻みに依存しない。`Impulse` に「力 × 質量」を渡すと「力」になり、前と同じになる
+- この枝(`AddForce`)を通るのは、`SetTargetObjects()` で Rigidbody つきの対象を渡したときだけ。Inspector で設定した対象は Rigidbody の有無にかかわらず座標を直接動かす枝を通るので、今回の変更の影響を受けない
 
 ## 0.7.0 の変更点
 
