@@ -22,7 +22,7 @@
 
 ## 動作環境
 
-- Unity 2022.3
+- Unity 6000.0.67f1
 - VRChat SDK - Worlds（UdonSharp）
 
 ## 収録スクリプト
