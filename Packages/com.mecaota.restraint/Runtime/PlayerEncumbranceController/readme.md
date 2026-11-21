@@ -67,12 +67,12 @@ if (Controller() != null) controller.Release(this);
 
 ## 動きにくさ
 
-まとめ役は、プレイヤーごとの動きにくさ(0〜255)を持ちます。値は本人の端末だけが書き、Manual 同期で全端末へ送ります(0.2 秒分まとめて送ります)。
+まとめ役は、プレイヤーごとの動きにくさ(0〜255)を持ちます。値と `Immobile At` は本人の端末だけが書き、Manual 同期で全端末へ送ります(0.2 秒分まとめて送ります)。`Immobile At` をスクリプトから変えたら `_Add(0)` を呼んでください。
 
 - 値が `Immobile At` より小さい間は、移動を「1 − 値 ÷ `Immobile At`」倍以下にします(まとめ役自身の倍率と小さい方)。`Immobile At` 以上で、移動もジャンプもできません
 - もがくと、1 回ごとに `Recover Amount` だけ減ります。VR は手を速く振り返した時、デスクトップは移動キーを新しく倒した時に数えます
 - 時間では減りません。リスポーンと `_Reset()` で 0 に戻ります
-- `Animator` を設定すると、全端末で値が変わるたびに float の `Amount` に 値 ÷ 255 を入れます
+- `Animator` を設定すると、全端末で値が変わるたびに float の `Amount` に 値 ÷ 255 を、bool の `Immobile` に「値 ≥ `Immobile At`」を入れます。どちらのパラメーターも Animator に用意してください(無いと、値が変わるたびに全端末で警告が出ます)
 - ほかのギミックから値を読むときは、同期変数 `amount`(int)を `GetProgramVariable("amount")` で読みます
 
 ## 速度のイベント
@@ -134,7 +134,7 @@ Core の `Network Event Target` は `Self` のままにしてください。
 
 - **Immobile At**: この値以上で移動もジャンプもできない(既定 32。1 以上に丸めます)
 - **Recover Amount**: もがき 1 回で減らす量(既定 2)
-- **Animator**: 値 ÷ 255 を float の `Amount` に入れる Animator。空なら何もしません
+- **Animator**: 値 ÷ 255 を float の `Amount` に、値 ≥ `Immobile At` を bool の `Immobile` に入れる Animator。空なら何もしません
 
 ## 注意
 

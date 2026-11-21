@@ -38,12 +38,19 @@ FukuroUdon は必須ではありません。装着のトリガーは `ActiveRela
 ローカルプレイヤーの移動速度・ジャンプ・重力を、複数のギミックから重ねて絞るための部品です。プレイヤーごとの動きにくさも持ちます。置いた場所で役割が 2 つに分かれます。
 
 - **まとめ役**(PlayerObject のテンプレートの根に置き、ローカルプレイヤーの複製がまとめ役になる): 各ギミックは自分を holder として `Hold(holder, move, jump, gravity)` / `Release(holder)` を呼ぶだけで、元の値の保存と復元はまとめ役が受け持ちます。項目ごとに一番強い制限(最小値)を使うので掛けた順に依存せず、最後の holder が外れると、まとめ役が入れた値のままの項目だけ元に戻します。リスポーンで全部外れます。ギミックからは `PlayerEncumbranceController.Resolve(cached)` でローカルプレイヤーの PlayerObject から取ります。
-  - 動きにくさ(0〜255)を Manual 同期で持ちます。本人の端末だけが `_Add(int)` で増減し、`_Reset()` とリスポーンで 0 に戻ります。値が `immobileAt`(既定 32)より小さい間は「1 − 値 ÷ `immobileAt`」倍以下に減速し、以上で移動とジャンプを止めます。もがき 1 回ごとに `recoverAmount`(既定 2)だけ減ります。`animator` を設定すると、全端末で値 ÷ 255 を float の `Amount` に入れます。
+  - 動きにくさ(0〜255)を Manual 同期で持ちます。本人の端末だけが `_Add(int)` で増減し、`_Reset()` とリスポーンで 0 に戻ります。値が `immobileAt`(既定 32)より小さい間は「1 − 値 ÷ `immobileAt`」倍以下に減速し、以上で移動とジャンプを止めます。もがき 1 回ごとに `recoverAmount`(既定 2)だけ減ります。`animator` を設定すると、全端末で値 ÷ 255 を float の `Amount` に、「値 ≥ `immobileAt`」を bool の `Immobile` に入れます(`immobileAt` も同期します)。
 - **窓口**(それ以外の場所に置いたもの): スクリプト無しで使うための入口です。`SetSpeed`(決めた倍率にする)/ `AddSpeed`・`SubtractSpeed`(決めた量だけ増減)/ `ResetSpeed`(元の速度に戻す)を `SendCustomEvent` で受け、ローカルプレイヤーの移動速度を「元の速度の何倍か」で変えます(0 で移動できない、0.5 で半分)。増減は範囲の外に出た分も覚えるので、`SubtractSpeed` と `AddSpeed` を対で呼べば何回重なっても元に戻ります(対で送る送り手がいくつあっても、窓口は 1 つで済む)。`Core` を設定して Core の `receivers` に入れると、自分が装着されたら `SetSpeed`、外れたら `ResetSpeed` します。
 
 いま頼まれている移動・ジャンプの倍率は `HeldMove()` / `HeldJump()` で読めます(誰も掛けていなければ 1)。頼まれた値なので、別のシステムが上書きした実際の値とは違うことがあります。
 
 詳細は `Runtime/PlayerEncumbranceController/readme.md`。
+
+## 次の版の変更点(未リリース)
+
+**互換を切った。** `animator` を設定していて、Animator に bool の `Immobile` が無いと、値が変わるたびに全端末で「Parameter 'Immobile' does not exist」の警告が出る。
+
+- `PlayerEncumbranceController` の `animator` に、bool の `Immobile`(値 ≥ `immobileAt`)も入れるようにした。`animator` を設定している場合は、Animator に bool の `Immobile` を足すこと
+- `immobileAt` を値と一緒に同期するようにした。スクリプトから変えたら `_Add(0)` を呼ぶこと
 
 ## 0.7.1 の変更点
 
